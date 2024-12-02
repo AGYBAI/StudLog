@@ -145,7 +145,6 @@ def main(page: ft.Page):
     register_password_field = ft.TextField(label='Пароль', hint_text='Введите свой пароль', password=True)
     register_confirm_password_field = ft.TextField(label='Повторите пароль', hint_text='Введите пароль', password=True)
 
-    # Регистрация UI
     register = ft.Column(
         controls=[
             ft.Container(
