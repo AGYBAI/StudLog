@@ -22,6 +22,19 @@ def main(page: ft.Page):
         page.remove(login)
         page.add(register)
 
+    def on_register(e: ft.ControlEvent):
+        fio_value = register_fio_field.value
+        email_value = register_email_field.value
+        phone_value = register_phone_field.value
+        group_code_value = register_group_code_field.value
+        password_value = register_password_field.value
+        confirm_password_value = register_confirm_password_field.value
+
+        print(
+            f"ФИО: {fio_value}, Email: {email_value}, Телефон: {phone_value}, Группа: {group_code_value}, Пароль: {password_value}, Повтор: {confirm_password_value}")
+        page.add(ft.Text(
+            f"ФИО: {fio_value}, Email: {email_value}, Телефон: {phone_value}, Группа: {group_code_value}, Пароль: {password_value}, Повтор: {confirm_password_value}"))
+
     login = ft.Column(
         controls=[
             ft.Container(
@@ -125,160 +138,49 @@ def main(page: ft.Page):
         horizontal_alignment=ft.CrossAxisAlignment.CENTER
     )
 
+    register_fio_field = ft.TextField(label='ФИО', hint_text='ФИО')
+    register_email_field = ft.TextField(label='Адрес e-mail', hint_text='example@gmail.com')
+    register_phone_field = ft.TextField(label='Номер телефона', hint_text='+7')
+    register_group_code_field = ft.TextField(label='Код группы', hint_text='###-###-###')
+    register_password_field = ft.TextField(label='Пароль', hint_text='Введите свой пароль', password=True)
+    register_confirm_password_field = ft.TextField(label='Повторите пароль', hint_text='Введите пароль', password=True)
+
+    # Регистрация UI
     register = ft.Column(
         controls=[
             ft.Container(
                 bgcolor=ft.colors.WHITE,
                 border_radius=10,
-                width= 550,
+                width=550,
                 padding=ft.padding.all(10),
                 content=ft.Column(
                     controls=[
-                        ft.Text(
-                            value='Регистрация',
-                            weight='bold',
-                            size=20,
-                            color=ft.colors.BLACK
-                        ),
-                        ft.Divider(
-                            height=1,
-                            color=ft.colors.with_opacity(0.25, ft.colors.GREY),
-                            thickness=1
-                        ),
+                        ft.Text(value='Регистрация', weight='bold', size=20, color=ft.colors.BLACK),
+                        ft.Divider(height=1, color=ft.colors.with_opacity(0.25, ft.colors.GREY), thickness=1),
                         ft.Column(
                             controls=[
-                                ft.TextField(
-                                    label = 'ФИО',
-                                    hint_text='ФИО',
-                                    text_vertical_align=-0.30,
-                                    border=ft.InputBorder.OUTLINE,
-                                    border_width=1,
-                                    hint_style=ft.TextStyle(
-                                        size=14,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.4, ft.colors.BLACK)
+                                register_fio_field,
+                                register_email_field,
+                                register_phone_field,
+                                register_group_code_field,
+                                register_password_field,
+                                register_confirm_password_field,
+                                ft.ElevatedButton(
+                                    text='Регистрация',
+                                    color=ft.colors.WHITE,
+                                    bgcolor=ft.colors.BLUE_600,
+                                    width=550,
+                                    height=50,
+                                    style=ft.ButtonStyle(
+                                        shape=ft.RoundedRectangleBorder(radius=button_border_radius)
                                     ),
-                                    text_style=ft.TextStyle(
-                                        size=14,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.9, ft.colors.BLACK)
-                                    )
-                                ),
-                                ft.TextField(
-                                    label = 'Адрес e-mail',
-                                    hint_text='example@gmail.com',
-                                    text_vertical_align=-0.30,
-                                    border=ft.InputBorder.OUTLINE,
-                                    border_width=1,
-                                    hint_style=ft.TextStyle(
-                                        size=12,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.4, ft.colors.BLACK)
-                                    ),
-                                    text_style=ft.TextStyle(
-                                        size=12,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.9, ft.colors.BLACK)
-                                    ),
-                                    keyboard_type=ft.KeyboardType.EMAIL
-                                ),
-                                ft.TextField(
-                                    label = 'Номер телефона',
-                                    hint_text='+7',
-                                    text_vertical_align=-0.30,
-                                    border=ft.InputBorder.OUTLINE,
-                                    border_width=1,
-                                    hint_style=ft.TextStyle(
-                                        size=12,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.4, ft.colors.BLACK)
-                                    ),
-                                    text_style=ft.TextStyle(
-                                        size=12,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.9, ft.colors.BLACK)
-                                    ),
-                                    keyboard_type=ft.KeyboardType.PHONE
-                                ),
-                                ft.TextField(
-                                    label = 'Код группы',
-                                    hint_text='###-###-###',
-                                    text_vertical_align=-0.30,
-                                    border=ft.InputBorder.OUTLINE,
-                                    border_width=1,
-                                    hint_style=ft.TextStyle(
-                                        size=12,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.4, ft.colors.BLACK)
-                                    ),
-                                    text_style=ft.TextStyle(
-                                        size=12,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.9, ft.colors.BLACK)
-                                    ),
-                                    keyboard_type=ft.KeyboardType.PHONE
-                                ),
-                                ft.TextField(
-                                    label = 'Пароль',
-                                    hint_text='Введите свой пароль',
-                                    text_vertical_align=-0.30,
-                                    border=ft.InputBorder.OUTLINE,
-                                    border_width=1,
-                                    hint_style=ft.TextStyle(
-                                        size=12,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.4, ft.colors.BLACK)
-                                    ),
-                                    text_style=ft.TextStyle(
-                                        size=12,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.9, ft.colors.BLACK)
-                                    ),
-                                    password=True,
-                                    can_reveal_password=True
-                                ),
-                                ft.TextField(
-                                    label = 'Повторите пароль',
-                                    hint_text='Введите пароль',
-                                    text_vertical_align=-0.30,
-                                    border=ft.InputBorder.OUTLINE,
-                                    border_width=1,
-                                    hint_style=ft.TextStyle(
-                                        size=12,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.4, ft.colors.BLACK)
-                                    ),
-                                    text_style=ft.TextStyle(
-                                        size=12,
-                                        weight='bold',
-                                        color=ft.colors.with_opacity(0.9, ft.colors.BLACK)
-                                    ),
-                                    password=True,
-                                    can_reveal_password=True
-                                ),
-                                ft.Container(  
-                    content=ft.ElevatedButton(
-                        text='Регистрация',
-                        color=ft.colors.WHITE,
-                        bgcolor=ft.colors.BLUE_600,
-                        width=550,
-                        height=50,
-                        style=ft.ButtonStyle(
-                            shape=ft.RoundedRectangleBorder(radius=button_border_radius)  
-                        )
-                    ),
-                    alignment=ft.alignment.center,  
-                )
+                                    on_click=on_register
+                                )
                             ],
                             spacing=15
                         ),
                         ft.Row(
-                            controls=[
-                                ft.TextButton(
-                                    text='У меня уже есть аккаунт',
-                                    on_click=lambda e: logar(e)
-                                )
-                            ],
+                            controls=[ft.TextButton(text='У меня уже есть аккаунт', on_click=logar)],
                             alignment=ft.MainAxisAlignment.CENTER
                         )
                     ],
@@ -292,6 +194,7 @@ def main(page: ft.Page):
     )
 
     page.add(login)
+
 
 if __name__ == '__main__':
     ft.app(target=main)
