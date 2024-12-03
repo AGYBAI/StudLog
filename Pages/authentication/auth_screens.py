@@ -77,7 +77,7 @@ def main(page: ft.Page):
         register_group_code_field.update()
         register_password_field.update()
         register_confirm_password_field.update()
-
+        # 123
         if not (register_fio_field.value and
                 register_email_field.value and
                 register_phone_field.value and
