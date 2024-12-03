@@ -1,4 +1,8 @@
 import flet as ft
+from psycopg2 import connect
+
+con = connect(dbname="nw", user="postgres", password="1234", host="127.0.0.1", port="5432")
+cur = con.cursor()
 
 def main(page: ft.Page):
     page.title = 'StudLog'
@@ -30,10 +34,68 @@ def main(page: ft.Page):
         password_value = register_password_field.value
         confirm_password_value = register_confirm_password_field.value
 
-        print(
-            f"ФИО: {fio_value}, Email: {email_value}, Телефон: {phone_value}, Группа: {group_code_value}, Пароль: {password_value}, Повтор: {confirm_password_value}")
-        page.add(ft.Text(
-            f"ФИО: {fio_value}, Email: {email_value}, Телефон: {phone_value}, Группа: {group_code_value}, Пароль: {password_value}, Повтор: {confirm_password_value}"))
+        error_message = ft.Text("Это обязательное поле!", text_align=ft.TextAlign.RIGHT, color=ft.Colors.RED)
+        if not fio_value:
+            register_fio_field.helper_text = "Поле не может быть пустым!"
+            register_fio_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+        else:
+            register_fio_field.helper_text = ""
+
+        if not email_value:
+            register_email_field.helper_text = "Поле не может быть пустым!"
+            register_email_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+        else:
+            register_email_field.helper_text = ""
+
+        if not phone_value:
+            register_phone_field.helper_text = "Поле не может быть пустым!"
+            register_phone_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+        else:
+            register_phone_field.helper_text = ""
+
+        if not group_code_value:
+            register_group_code_field.helper_text = "Поле не может быть пустым!"
+            register_group_code_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+        else:
+            register_group_code_field.helper_text = ""
+
+        if not password_value:
+            register_password_field.helper_text = "Поле не может быть пустым!"
+            register_password_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+        else:
+            register_password_field.helper_text = ""
+
+        if not confirm_password_value:
+            register_confirm_password_field.helper_text = "Поле не может быть пустым!"
+            register_confirm_password_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+        else:
+            register_confirm_password_field.helper_text = ""
+
+        register_fio_field.update()
+        register_email_field.update()
+        register_phone_field.update()
+        register_group_code_field.update()
+        register_password_field.update()
+        register_confirm_password_field.update()
+
+        if not (register_fio_field.value and
+                register_email_field.value and
+                register_phone_field.value and
+                register_group_code_field.value and
+                register_password_field.value and
+                register_confirm_password_field.value):
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text("Все поля должны быть заполнены!"),
+                bgcolor=ft.colors.RED
+            )
+            page.snack_bar.open = True
+            page.update()
+        else:
+            cur.execute("""INSERT INTO users(full_name, email, phone_number, password)
+            VALUES(%s, %s, %s, %s)""", (fio_value, email_value, phone_value, password_value))
+            con.commit()
+
+
 
     login = ft.Column(
         controls=[
@@ -194,7 +256,5 @@ def main(page: ft.Page):
     )
 
     page.add(login)
-
-
 if __name__ == '__main__':
     ft.app(target=main)
