@@ -1,7 +1,12 @@
 import flet as ft
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+from Pages.dashboard.students_screen import students_screen  # Импортируем экран студентов
+
 
 def dashboard_screen(page: ft.Page):
-    page.title = 'StudLog'
+    page.title = "StudLog"
     page.horizontal_alignment = ft.CrossAxisAlignment.START
     page.vertical_alignment = ft.MainAxisAlignment.START
     page.window.resizable = False
@@ -9,18 +14,16 @@ def dashboard_screen(page: ft.Page):
     page.padding = ft.padding.all(0)
     page.bgcolor = ft.colors.WHITE
 
-    # Функция для смены контента на экране
     def change_screen(e):
         selected_index = rail.selected_index
         update_content(selected_index)
 
-    # Функция для обновления контента на правой стороне
     def update_content(selected_index):
-        content.controls.clear()  # Очистка текущего контента
+        content.controls.clear()
         if selected_index == 0:
-            content.controls.append(ft.Text("Вы на главной странице", size=20, color=ft.colors.BLACK))
+            content.controls.append(students_screen())  # Добавляем экран студентов
         elif selected_index == 1:
-            content.controls.append(ft.Text("Профиль пользователя", size=20, color=ft.colors.BLACK))
+            content.controls.append(ft.Text("Ваш профиль", size=20, color=ft.colors.BLACK))
         elif selected_index == 2:
             content.controls.append(ft.Text("Статистика использования", size=20, color=ft.colors.BLACK))
         elif selected_index == 3:
@@ -29,47 +32,53 @@ def dashboard_screen(page: ft.Page):
             content.controls.append(ft.Text("Поддержка пользователей", size=20, color=ft.colors.BLACK))
         content.update()
 
-    # Функция для создания пункта в NavigationRail
     def create_rail_destination(icon, selected_icon, label):
         return ft.NavigationRailDestination(
-            icon=ft.Container(
-                content=ft.Row(
-                    controls=[
-                        ft.Icon(icon, size=24),
-                        ft.Text(label, expand=True, size=16, weight=ft.FontWeight.BOLD),
-                    ],
-                    alignment=ft.MainAxisAlignment.START,
-                    expand=True,
-                ),
-                expand=True,
-                bgcolor=ft.colors.GREY_100,
-                padding=10,
-                border_radius=8,
-                alignment=ft.alignment.center_left,
-            ),
+            icon=ft.Icon(icon, size=24),
             selected_icon=selected_icon,
-            label='',
+            label=label,
         )
 
-    # Создаём NavigationRail
     rail = ft.NavigationRail(
-        bgcolor=ft.colors.GREY_100,
+        bgcolor=ft.colors.GREY_200,
         selected_index=0,
         label_type=ft.NavigationRailLabelType.ALL,
-        min_width=256,
-        min_extended_width=400,
+        min_width=300,
+        min_extended_width=300,
         leading=ft.Column(
-            [
+            controls=[
                 ft.Image(
                     src="/Users/gibatolla/Documents/Практика/StudLog/assets/logo.png",
-                    width=200,
-                    height=200,
+                    width=150,
+                    height=150,
                 ),
                 ft.Divider(thickness=1, color=ft.colors.BLACK),
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
         group_alignment=-0.9,
+        trailing=ft.Column(  # Информация о пользователе внизу
+            controls=[
+                ft.Divider(thickness=1, color=ft.colors.BLACK),
+                ft.Row(
+                    controls=[
+                        ft.CircleAvatar(
+                            content=ft.Text("ДК"),
+                            radius=40,
+                        ),
+                        ft.Column(
+                            controls=[
+                                ft.Text("Данияр Канатов", weight=ft.FontWeight.BOLD),
+                                ft.Text("example@gmail.com", size=12),
+                            ],
+                            alignment=ft.MainAxisAlignment.CENTER,
+                        ),
+                    ],
+                    spacing=10,
+                ),
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
         destinations=[
             create_rail_destination(ft.icons.HOME_OUTLINED, ft.icons.HOME, "Главная"),
             create_rail_destination(ft.icons.ACCOUNT_BOX_OUTLINED, ft.icons.ACCOUNT_BOX, "Профиль"),
@@ -77,26 +86,31 @@ def dashboard_screen(page: ft.Page):
             create_rail_destination(ft.icons.SETTINGS_OUTLINED, ft.icons.SETTINGS, "Настройки"),
             create_rail_destination(ft.icons.CONTACT_SUPPORT_OUTLINED, ft.icons.CONTACT_SUPPORT, "Поддержка"),
         ],
-        on_change=change_screen,  # Вызываем функцию при смене экрана
+        on_change=change_screen,
     )
 
-    # Контейнер для динамического контента
     content = ft.Column(
-        controls=[ft.Text("Вы на главной странице", size=20, color=ft.colors.BLACK)],
+        controls=[students_screen()],
         alignment=ft.MainAxisAlignment.START,
         expand=True,
     )
 
-    # Основной макет
     page.add(
         ft.Row(
             controls=[
-                rail,  # NavigationRail остаётся на месте
-                content,  # Правая часть с динамическим контентом
+                rail,
+                ft.Container(
+                    content,
+                    expand=True,
+                    bgcolor=ft.colors.WHITE,
+                    padding=ft.padding.all(16),
+                    border_radius=ft.border_radius.all(12),
+                ),
             ],
             expand=True,
         )
     )
+
 
 if __name__ == "__main__":
     ft.app(target=dashboard_screen)
