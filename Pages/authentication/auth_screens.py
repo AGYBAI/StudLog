@@ -1,7 +1,8 @@
 import flet as ft
 from psycopg2 import connect
 
-con = connect(dbname="", user="postgres", password="1234", host="127.0.0.1", port="5432")
+con = connect(dbname="railway", user="postgres", password="dfFudMqjdNUrRDNEvvTVVvBaNztZfxaP",
+              host="autorack.proxy.rlwy.net", port="33741")
 cur = con.cursor()
 
 def main(page: ft.Page):
