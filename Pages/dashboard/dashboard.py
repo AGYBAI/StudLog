@@ -2,7 +2,8 @@ import flet as ft
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
-from Pages.dashboard.students_screen import students_screen  # Импортируем экран студентов
+from Pages.dashboard.profile_screen import profile_screen
+from Pages.dashboard.students_screen import students_screen
 
 
 def dashboard_screen(page: ft.Page):
@@ -21,9 +22,9 @@ def dashboard_screen(page: ft.Page):
     def update_content(selected_index):
         content.controls.clear()
         if selected_index == 0:
-            content.controls.append(students_screen())  # Добавляем экран студентов
+            content.controls.append(students_screen()) 
         elif selected_index == 1:
-            content.controls.append(ft.Text("Ваш профиль", size=20, color=ft.colors.BLACK))
+            content.controls.append(profile_screen()) 
         elif selected_index == 2:
             content.controls.append(ft.Text("Статистика использования", size=20, color=ft.colors.BLACK))
         elif selected_index == 3:
@@ -49,15 +50,15 @@ def dashboard_screen(page: ft.Page):
             controls=[
                 ft.Image(
                     src="/Users/gibatolla/Documents/Практика/StudLog/assets/logo.png",
-                    width=150,
-                    height=150,
+                    width=200,
+                    height=200,
                 ),
                 ft.Divider(thickness=1, color=ft.colors.BLACK),
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
         group_alignment=-0.9,
-        trailing=ft.Column(  # Информация о пользователе внизу
+        trailing=ft.Column(  
             controls=[
                 ft.Divider(thickness=1, color=ft.colors.BLACK),
                 ft.Row(

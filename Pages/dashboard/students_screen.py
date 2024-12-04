@@ -3,10 +3,8 @@ import flet as ft
 
 def students_screen():
     def on_search_change(e):
-        # Обработчик поиска, можно добавить логику фильтрации таблицы
         print(f"Поиск: {e.control.value}")
 
-    # Поле поиска
     search_row = ft.Row(
         controls=[
             ft.TextField(
@@ -33,7 +31,6 @@ def students_screen():
         alignment=ft.MainAxisAlignment.START,
     )
 
-    # Таблица студентов
     students_table = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text("ФИО")),
@@ -54,13 +51,11 @@ def students_screen():
                     ft.DataCell(ft.Text("Кошкарбаева 23, Кв. 45")),
                 ]
             ),
-            # Добавьте остальные строки
         ],
         heading_text_style=ft.TextStyle(size=14, weight=ft.FontWeight.BOLD),
         data_text_style=ft.TextStyle(size=12),
     )
 
-    # Контейнер с контентом экрана
     return ft.Column(
         controls=[
             search_row,
