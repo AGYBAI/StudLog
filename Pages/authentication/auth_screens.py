@@ -97,6 +97,18 @@ def main(page: ft.Page):
                 field.helper_text = ""
             field.update()
 
+        if register_password_field.value != register_confirm_password_field.value:
+            register_confirm_password_field.helper_text = "Пароли не совпадают!"
+            register_confirm_password_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+            all_fields_filled = False
+            register_confirm_password_field.update()
+        else:
+            register_confirm_password_field.helper_text = ''
+            register_confirm_password_field.update()
+
+        # if register_password_field.value != register_confirm_password_field.value:
+        #     show_snack_bar(page, "Пароли не совпадают!", ft.Colors.RED)
+
         if all_fields_filled:
             cur.execute("""INSERT INTO users(full_name, email, phone_number, password)
                            VALUES(%s, %s, %s, %s)""",
