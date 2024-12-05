@@ -17,17 +17,18 @@ def main(page: ft.Page):
     field_width = 400
     field_height = 50
     button_border_radius = 8
-    
+
 
     def logar(e: ft.ControlEvent):
         page.remove(register)
         page.add(login)
-    
+
     def registar(e: ft.ControlEvent):
         page.remove(login)
         page.add(register)
 
     def on_login(e: ft.ControlEvent):
+        # Проверка на пустые поля
         fields = {
             login_email_field: "Поле не может быть пустым!",
             login_password_field: "Поле не может быть пустым!"
@@ -42,6 +43,38 @@ def main(page: ft.Page):
             else:
                 field.helper_text = ""
             field.update()
+
+        if not all_fields_filled:
+            return
+
+        email_value = login_email_field.value
+        password_value = login_password_field.value
+
+        cur.execute("SELECT id, password FROM users WHERE email = %s;", (email_value,))
+        user = cur.fetchone()
+
+        if user is None:
+            show_snack_bar(page, "Неверный логин или пароль", ft.Colors.RED)
+            print("Email не существует")
+            return
+
+        user_id, stored_password = user
+
+        if password_value == stored_password:
+            print("Logged in successfully!")
+            show_snack_bar(page, "Авторизация прошла успешно", ft.Colors.GREEN)
+        else:
+            print("Wrong password!")
+            show_snack_bar(page, "Неверный логин или пароль", ft.Colors.RED)
+
+    def show_snack_bar(page, message, color):
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text(message),
+            bgcolor=color
+        )
+        page.snack_bar.open = True
+        page.update()
+
 
     def on_register(e: ft.ControlEvent):
         fields = {
