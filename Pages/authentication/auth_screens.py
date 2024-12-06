@@ -1,6 +1,8 @@
 import re
 import flet as ft
 from psycopg2 import connect
+from flet import RouteChangeEvent, ViewPopEvent, View
+from Pages.dashboard.dashboard import dashboard_screen
 
 con = connect(dbname="railway", user="postgres", password="dfFudMqjdNUrRDNEvvTVVvBaNztZfxaP",
               host="autorack.proxy.rlwy.net", port="33741")
@@ -19,7 +21,6 @@ def main(page: ft.Page):
     field_height = 50
     button_border_radius = 8
     
-    
 # вход
        # Функция для проверки валидности email
     def validate_email(email):
@@ -27,16 +28,16 @@ def main(page: ft.Page):
         return re.match(pattern, email) is not None
 
     # Обработчик изменения текста в поле email
-    def on_email_change(e):
+    def email_change(e, field):
         if validate_email(e.control.value):
-            login_email_field.error_text = None
-            login_email_field.border_color = "green"
+            field.error_text = None
+            field.border_color = "green"
         else:
-            login_email_field.error_text = "Введите корректный email"
-            login_email_field.border_color = "red"
-        login_email_field.update()
+            field.error_text = "Введите корректный email"
+            field.border_color = "red"
+        field.update()
     
-    def on_password_change(e):
+    def on_login_password_change(e):
         if len(e.control.value) >= 6:
             login_password_field.error_text = None
             login_password_field.border_color = "green"
@@ -44,23 +45,7 @@ def main(page: ft.Page):
             login_password_field.error_text = "Пароль должен быть не менее 6 символов"
             login_password_field.border_color = "red"
         login_password_field.update()
-
 # регистрация
-    # Функция для проверки валидности email
-    def validate_register_email(email):
-        pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-        return re.match(pattern, email) is not None
-
-    # Обработчик изменения текста в поле email
-    def on_email_register_change(e):
-        if validate_register_email(e.control.value):
-            register_email_field.error_text = None
-            register_email_field.border_color = "green"
-        else:
-            register_email_field.error_text = "Введите корректный email"
-            register_email_field.border_color = "red"
-        register_email_field.update()
-
     
     # Проверка подтверждения пароля
     def on_password_register_change(e):
@@ -78,8 +63,8 @@ def main(page: ft.Page):
     # Проверка совпадения пароля и подтверждения
     def on_confirm_password_change(e):
         validate_confirm_password()
-
-    # Вспомогательная функция для проверки совпадения паролей
+    #
+    # # Вспомогательная функция для проверки совпадения паролей
     def validate_confirm_password():
         if register_confirm_password_field.value == register_password_field.value and len(register_password_field.value) >= 6:
             register_confirm_password_field.error_text = None
@@ -90,19 +75,19 @@ def main(page: ft.Page):
         register_confirm_password_field.update()
 
         # Проверка ФИО (цифры запрещены)
-    def on_name_change(e):
-        if re.match(r"^[а-яА-ЯёЁa-zA-Z\s]+$", register_fio_field.value):
-            register_fio_field.error_text = None
-            register_fio_field.border_color = "green"
+    def name_change(e, field):
+        if re.match(r"^[а-яА-ЯёЁa-zA-Z\s]+$", field.value):
+            field.error_text = None
+            field.border_color = "green"
         else:
-            register_fio_field.error_text = "ФИО не должно содержать цифр или специальных символов"
-            register_fio_field.border_color = "red"
-        register_fio_field.update()
+            field.error_text = "ФИО не должно содержать цифр или специальных символов"
+            field.border_color = "red"
+        field.update()
 
   
 
-    def on_phone_change(e):
-        value = register_phone_field.value
+    def phone_change(e, field):
+        value = field.value
         formatted = re.sub(r"[^\d]", "", value)
         if len(formatted) > 1:
             formatted = "+7 " + formatted[1:]
@@ -112,37 +97,37 @@ def main(page: ft.Page):
                 formatted = formatted[:10] + "-" + formatted[10:]
         if len(formatted) > 15:
             formatted = formatted[:15] + "-" + formatted[15:]
-        register_phone_field.value = formatted[:15]
-        register_phone_field.update()
+        field.value = formatted[:15]
+        field.update()
 
         if len(formatted) == 15:
-            register_phone_field.error_text = None
-            register_phone_field.border_color = "green"
+            field.error_text = None
+            field.border_color = "green"
         else:
-            register_phone_field.error_text = "Введите номер в формате +7 777-777-7777"
-            register_phone_field.border_color = "red"
-        register_phone_field.update()
+            field.error_text = "Введите номер в формате +7 777-777-7777"
+            field.border_color = "red"
+        field.update()
 
 
         # Проверка кода группы
-    def on_group_code_change(e):
+    def group_code_change(e, field):
         # Шаблон: ###-###-###
-        value = register_group_code_field.value
+        value = field.value
         formatted = re.sub(r"[^\w]", "", value)  # Удаляем всё, кроме букв и цифр
         if len(formatted) > 3:
             formatted = formatted[:3] + "-" + formatted[3:]
         if len(formatted) > 7:
             formatted = formatted[:7] + "-" + formatted[7:]
-        register_group_code_field.value = formatted[:11]  # Ограничиваем длину
-        register_group_code_field.update()
+        field.value = formatted[:11]  # Ограничиваем длину
+        field.update()
 
         if re.match(r"^\w{3}-\w{3}-\w{3}$", formatted):
-            register_group_code_field.error_text = None
-            register_group_code_field.border_color = "green"
+            field.error_text = None
+            field.border_color = "green"
         else:
-            register_group_code_field.error_text = "Код группы должен быть в формате ###-###-###"
-            register_group_code_field.border_color = "red"
-        register_group_code_field.update()
+            field.error_text = "Код группы должен быть в формате ###-###-###"
+            field.border_color = "red"
+        field.update()
 
     # Обработчик нажатия кнопки
     # def on_login_click(e):
@@ -172,11 +157,13 @@ def main(page: ft.Page):
             and len(login_password_field.value) >= 6
         ):
             page.snack_bar = ft.SnackBar(ft.Text("Вход выполнен! ✅"), open=True)
+            page.update()
         else:
             page.snack_bar = ft.SnackBar(
                 ft.Text("Пожалуйста, исправьте ошибки", color="red"), open=True
-            ),
-        page.update(),
+            )
+            page.update()
+
 
         fields = {
             login_email_field: "Поле не может быть пустым!",
@@ -300,7 +287,7 @@ def main(page: ft.Page):
     login_email_field = ft.TextField(
         label='Адрес e-mail',
         hint_text='example@gmail.com',
-        on_change=on_email_change,
+        on_change=lambda e: email_change(e, login_email_field),
         text_vertical_align=-0.30,
         border=ft.InputBorder.OUTLINE,
         border_width=1,
@@ -311,7 +298,7 @@ def main(page: ft.Page):
     login_password_field = ft.TextField(
         label='Пароль',
         hint_text='Введите свой пароль',
-        on_change=on_password_change,
+        on_change=on_login_password_change,
         text_vertical_align=-0.30,
         border=ft.InputBorder.OUTLINE,
         border_width=1,
@@ -372,22 +359,22 @@ def main(page: ft.Page):
         horizontal_alignment=ft.CrossAxisAlignment.CENTER
     )
 
-    register_fio_field = ft.TextField(label='ФИО', hint_text='ФИО', on_change=on_name_change, border=ft.InputBorder.OUTLINE, border_width=1,
+    register_fio_field = ft.TextField(label='ФИО', hint_text='ФИО', on_change=lambda e: name_change(e, register_fio_field), border=ft.InputBorder.OUTLINE, border_width=1,
                                       hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
                                       text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
-    register_email_field = ft.TextField(label='Адрес e-mail', hint_text='example@gmail.com', on_change=on_email_register_change, border=ft.InputBorder.OUTLINE, border_width=1,
+    register_email_field = ft.TextField(label='Адрес e-mail', hint_text='example@gmail.com', on_change=lambda e: email_change(e, register_email_field), border=ft.InputBorder.OUTLINE, border_width=1,
                                       hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
                                       text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
-    register_phone_field = ft.TextField(label='Номер телефона', hint_text='+7', on_change=on_phone_change, border=ft.InputBorder.OUTLINE, border_width=1,
+    register_phone_field = ft.TextField(label='Номер телефона', hint_text='+7', on_change=lambda e: phone_change(e, register_phone_field), border=ft.InputBorder.OUTLINE, border_width=1,
                                       hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
                                       text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
-    register_group_code_field = ft.TextField(label='Код группы', hint_text='###-###-###', on_change=on_group_code_change, border=ft.InputBorder.OUTLINE, border_width=1,
+    register_group_code_field = ft.TextField(label='Код группы', hint_text='###-###-###', on_change=lambda e: group_code_change(e, register_group_code_field), border=ft.InputBorder.OUTLINE, border_width=1,
                                       hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
                                       text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
     register_password_field = ft.TextField(label='Пароль', hint_text='Введите свой пароль', on_change=on_password_register_change, password=True, border=ft.InputBorder.OUTLINE, border_width=1,
                                       hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
                                       text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
-    register_confirm_password_field = ft.TextField(label='Повторите пароль', hint_text='Введите пароль', on_change=on_confirm_password_change, password=True, border=ft.InputBorder.OUTLINE, border_width=1,
+    register_confirm_password_field = ft.TextField(label='Повторите пароль', hint_text='Введите пароль', on_change= on_confirm_password_change, password=True, border=ft.InputBorder.OUTLINE, border_width=1,
                                       hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
                                       text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
 
