@@ -1,12 +1,29 @@
 import re
 import flet as ft
+import os
+import json
 from psycopg2 import connect
-from flet import RouteChangeEvent, ViewPopEvent, View
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from Pages.dashboard.dashboard import dashboard_screen
 
 con = connect(dbname="railway", user="postgres", password="dfFudMqjdNUrRDNEvvTVVvBaNztZfxaP",
               host="autorack.proxy.rlwy.net", port="33741")
 cur = con.cursor()
+
+SESSION_FILE = "session.json"
+
+def is_user_logged_in():
+        if os.path.exists(SESSION_FILE):
+            with open(SESSION_FILE, "r") as file:
+                session = json.load(file)
+                return session.get("is_logged_in", False)
+        return False
+
+    # Сохраняем сессию
+def save_session(is_logged_in, email=""):
+            with open(SESSION_FILE, "w") as file:
+                json.dump({"is_logged_in": is_logged_in, "user_email": email}, file)
 
 def main(page: ft.Page):
     page.title = 'StudLog'
@@ -20,6 +37,30 @@ def main(page: ft.Page):
     field_width = 400
     field_height = 50
     button_border_radius = 8
+
+    global content
+    content = ft.Column()
+
+    # Проверка состояния пользователя
+    # if is_user_logged_in():
+    #     update_auth_content(2)  # Переход на dashboard
+    # else:
+    #     update_auth_content(0)  # Показать экран входа
+
+    # page.add(content)
+
+
+    # def update_auth_content(selected_index):
+    #         content.controls.clear(),
+    #         if selected_index == 0:  # Экран входа
+    #             content.controls.append((on_login)),
+    #         elif selected_index == 1:  # Экран регистрации
+    #             content.controls.append((on_register)),
+    #         elif selected_index == 2:  # После входа, переход на dashboard
+    #             from Pages.dashboard.dashboard import dashboard_screen
+    #             content.controls.append(dashboard_screen())
+    #         content.update()
+
     
 # вход
        # Функция для проверки валидности email
@@ -151,23 +192,18 @@ def main(page: ft.Page):
         page.add(register)
 
     def on_login(e: ft.ControlEvent):
-
-        if (
-            validate_email(login_email_field.value)
-            and len(login_password_field.value) >= 6
-        ):
-            page.snack_bar = ft.SnackBar(ft.Text("Вход выполнен! ✅"), open=True)
-            page.update()
-        else:
+       # Проверка формата email и длины пароля
+        if not validate_email(login_email_field.value) or len(login_password_field.value) < 6:
             page.snack_bar = ft.SnackBar(
                 ft.Text("Пожалуйста, исправьте ошибки", color="red"), open=True
             )
             page.update()
+            return
 
-
+        # Проверка на заполненность полей
         fields = {
             login_email_field: "Поле не может быть пустым!",
-            login_password_field: "Поле не может быть пустым!"
+            login_password_field: "Поле не может быть пустым!",
         }
         all_fields_filled = True
 
@@ -179,6 +215,36 @@ def main(page: ft.Page):
             else:
                 field.helper_text = ""
             field.update()
+
+        if not all_fields_filled:
+            return
+
+        # Проверка данных пользователя в базе
+        try:
+            cur.execute(
+                """SELECT password FROM users WHERE email = %s""",
+                (login_email_field.value,),
+            )
+            user = cur.fetchone()
+
+            if user:
+                db_password = user[0]
+                if login_password_field.value == db_password:
+                    page.snack_bar = ft.SnackBar(ft.Text("Вход выполнен! ✅", color="green"), open=True)
+                else:
+                    login_password_field.helper_text = "Неверный пароль"
+                    login_password_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+            else:
+                login_email_field.helper_text = "Пользователь с таким email не найден"
+                login_email_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+        except Exception as error:
+            page.snack_bar = ft.SnackBar(
+                ft.Text(f"Ошибка при входе: {error}", color="red"), open=True
+            )
+        finally:
+            login_email_field.update()
+            login_password_field.update()
+            page.update()
 
 
     def on_register(e: ft.ControlEvent):
