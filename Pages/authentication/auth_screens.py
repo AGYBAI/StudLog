@@ -5,7 +5,6 @@ import json
 from psycopg2 import connect
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
-from Pages.dashboard.dashboard import dashboard_screen
 
 con = connect(dbname="railway", user="postgres", password="dfFudMqjdNUrRDNEvvTVVvBaNztZfxaP",
               host="autorack.proxy.rlwy.net", port="33741")
@@ -246,6 +245,19 @@ def main(page: ft.Page):
             login_password_field.update()
             page.update()
 
+        if user and login_password_field.value == user[0]:
+            # Переход на главную страницу
+            from Pages.dashboard.dashboard import dashboard_screen
+            new_view = ft.View(
+                route="/dashboard",
+                controls=[]  # Создаем пустую страницу
+            )
+            page.views.append(new_view)  # Добавляем новое представление
+            dashboard_screen(page)  # Добавляем содержимое на страницу
+            page.go("/dashboard")  # Переходим к маршруту
+        else:
+            login_password_field.helper_text = "Неверный пароль"
+            login_password_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
 
     def on_register(e: ft.ControlEvent):
     # Проверяем, что все поля заполнены и не содержат ошибок

@@ -5,6 +5,16 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"
 from Pages.dashboard.profile_screen import profile_screen
 from Pages.dashboard.students_screen import students_screen
 
+# def dashboard_screen(page: ft.Page):
+#     page.views[-1].controls.append(
+#         ft.Row(
+#             controls=[
+#                 ft.Text("Добро пожаловать в StudLog!"),
+#                 # Добавьте остальные элементы интерфейса
+#             ]
+#         )
+#     )
+#     page.update()
 
 def dashboard_screen(page: ft.Page):
     page.title = "StudLog"
@@ -22,9 +32,9 @@ def dashboard_screen(page: ft.Page):
     def update_content(selected_index):
         content.controls.clear()
         if selected_index == 0:
-            content.controls.append(students_screen()) 
+            content.controls.append(students_screen())
         elif selected_index == 1:
-            content.controls.append(profile_screen()) 
+            content.controls.append(profile_screen())
         elif selected_index == 2:
             content.controls.append(ft.Text("Статистика использования", size=20, color=ft.colors.BLACK))
         elif selected_index == 3:
@@ -58,7 +68,7 @@ def dashboard_screen(page: ft.Page):
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
         group_alignment=-0.9,
-        trailing=ft.Column(  
+        trailing=ft.Column(
             controls=[
                 ft.Divider(thickness=1, color=ft.colors.BLACK),
                 ft.Row(
@@ -96,7 +106,7 @@ def dashboard_screen(page: ft.Page):
         expand=True,
     )
 
-    page.add(
+    page.views[1].controls.append(
         ft.Row(
             controls=[
                 rail,
@@ -110,7 +120,9 @@ def dashboard_screen(page: ft.Page):
             ],
             expand=True,
         )
+
     )
+    page.update()
 
 
 if __name__ == "__main__":
