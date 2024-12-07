@@ -123,7 +123,3 @@ def dashboard_screen(page: ft.Page):
 
     )
     page.update()
-
-
-if __name__ == "__main__":
-    ft.app(target=dashboard_screen)

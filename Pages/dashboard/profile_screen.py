@@ -1,4 +1,12 @@
+import re
 import flet as ft
+import os
+import json
+from psycopg2 import connect
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+from Pages.authentication.auth_screens import save_session
+
 
 
 def profile_screen():
