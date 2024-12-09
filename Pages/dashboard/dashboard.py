@@ -80,10 +80,11 @@ def dashboard_screen(page: ft.Page):
                         ft.Column(
                             controls=[
                                 ft.Text("Данияр Канатов", weight=ft.FontWeight.BOLD),
-                                ft.Text("example@gmail.com", size=12),
+                                ft.Text("example@gmail.com", size=12)
                             ],
                             alignment=ft.MainAxisAlignment.CENTER,
                         ),
+
                     ],
                     spacing=10,
                 ),

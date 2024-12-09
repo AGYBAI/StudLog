@@ -169,6 +169,11 @@ def main(page: ft.Page):
             field.border_color = "red"
         field.update()
 
+    new_view = ft.View(
+        route="/dashboard",
+        controls=[]  # Создаем пустую страницу
+    )
+
     # Обработчик нажатия кнопки
     # def on_login_click(e):
     #     if (
@@ -246,12 +251,8 @@ def main(page: ft.Page):
             page.update()
 
         if user and login_password_field.value == user[0]:
-            # Переход на главную страницу
             from Pages.dashboard.dashboard import dashboard_screen
-            new_view = ft.View(
-                route="/dashboard",
-                controls=[]  # Создаем пустую страницу
-            )
+
             page.views.append(new_view)  # Добавляем новое представление
             dashboard_screen(page)  # Добавляем содержимое на страницу
             page.go("/dashboard")  # Переходим к маршруту
@@ -300,6 +301,11 @@ def main(page: ft.Page):
                     ft.Text("Регистрация прошла успешно! ✅", color="green"),
                     open=True,
                 )
+                from Pages.dashboard.dashboard import dashboard_screen
+
+                page.views.append(new_view)  # Добавляем новое представление
+                dashboard_screen(page)  # Добавляем содержимое на страницу
+                page.go("/dashboard")  # Переходим к маршруту
             except Exception as error:
                 page.snack_bar = ft.SnackBar(
                     ft.Text(f"Ошибка регистрации: {error}", color="red"),
@@ -361,6 +367,7 @@ def main(page: ft.Page):
         #     cur.execute("""INSERT INTO users(full_name, email, phone_number, password)
         #     VALUES(%s, %s, %s, %s)""", (fio_value, email_value, phone_value, password_value))
         #     con.commit()
+
 
     login_email_field = ft.TextField(
         label='Адрес e-mail',
@@ -504,5 +511,6 @@ def main(page: ft.Page):
     )
 
     page.add(login)
+
 if __name__ == '__main__':
     ft.app(target=main)
