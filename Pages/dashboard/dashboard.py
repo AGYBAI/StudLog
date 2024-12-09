@@ -84,10 +84,16 @@ def dashboard_screen(page: ft.Page):
                             ],
                             alignment=ft.MainAxisAlignment.CENTER,
                         ),
-
                     ],
                     spacing=10,
                 ),
+                ft.Divider(thickness=1, color=ft.colors.BLACK),
+                ft.ElevatedButton(
+                    text="Выйти",
+                    bgcolor=ft.colors.RED,
+                    color=ft.colors.WHITE,
+                    on_click=lambda e: page.go("/")  # Возврат на экран авторизации
+                )
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
