@@ -21,6 +21,7 @@ from Pages.dashboard.students_screen import students_screen
 
 def dashboard_screen(page: ft.Page):
     page.title = "StudLog"
+    route = "/dash_screen",
     page.horizontal_alignment = ft.CrossAxisAlignment.START
     page.vertical_alignment = ft.MainAxisAlignment.START
     page.window.resizable = False

@@ -29,6 +29,7 @@ dash_view = ft.View(
         controls=[]  # Создаем пустую страницу
     )
 def main(page: ft.Page):
+    route = "/",
     page.title = 'StudLog'
     if is_user_logged_in():
         from Pages.dashboard.dashboard import dashboard_screen
@@ -87,22 +88,22 @@ def main(page: ft.Page):
         field.update()
     
     def on_login_password_change(e):
-        if len(e.control.value) >= 6:
+        if len(e.control.value) >= 8:
             login_password_field.error_text = None
             login_password_field.border_color = "green"
         else:
-            login_password_field.error_text = "Пароль должен быть не менее 6 символов"
+            login_password_field.error_text = "Пароль должен быть не менее 8 символов"
             login_password_field.border_color = "red"
         login_password_field.update()
 # регистрация
     
     # Проверка подтверждения пароля
     def on_password_register_change(e):
-        if len(register_password_field.value) >= 6:
+        if len(register_password_field.value) >= 8:
             register_password_field.error_text = None
             register_password_field.border_color = "green"
         else:
-            register_password_field.error_text = "Пароль должен быть не менее 6 символов"
+            register_password_field.error_text = "Пароль должен быть не менее 8 символов"
             register_password_field.border_color = "red"
         register_password_field.update()
 
@@ -194,6 +195,7 @@ def main(page: ft.Page):
     #     page.update()
 
     def logar(e: ft.ControlEvent):
+        page.route = "/login"
         page.remove(register)
         page.add(login)
     
