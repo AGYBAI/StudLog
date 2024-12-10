@@ -10,6 +10,7 @@ con = connect(dbname="railway", user="postgres", password="dfFudMqjdNUrRDNEvvTVV
               host="autorack.proxy.rlwy.net", port="33741")
 cur = con.cursor()
 
+
 SESSION_FILE = "session.json"
 
 def is_user_logged_in():
@@ -23,9 +24,17 @@ def is_user_logged_in():
 def save_session(is_logged_in, email=""):
             with open(SESSION_FILE, "w") as file:
                 json.dump({"is_logged_in": is_logged_in, "user_email": email}, file)
-
+dash_view = ft.View(
+        route="/dashboard",
+        controls=[]  # Создаем пустую страницу
+    )
 def main(page: ft.Page):
     page.title = 'StudLog'
+    if is_user_logged_in():
+        from Pages.dashboard.dashboard import dashboard_screen
+        page.views.append(dash_view)  # Добавляем новое представление
+        dashboard_screen(page)  # Добавляем содержимое на страницу
+        page.go("/dashboard") # Если авторизован, показываем Dashboard
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.window.resizable = False
@@ -169,10 +178,7 @@ def main(page: ft.Page):
             field.border_color = "red"
         field.update()
 
-    new_view = ft.View(
-        route="/dashboard",
-        controls=[]  # Создаем пустую страницу
-    )
+    
 
     # Обработчик нажатия кнопки
     # def on_login_click(e):
@@ -252,8 +258,8 @@ def main(page: ft.Page):
 
         if user and login_password_field.value == user[0]:
             from Pages.dashboard.dashboard import dashboard_screen
-
-            page.views.append(new_view)  # Добавляем новое представление
+            save_session(True, login_email_field.value)
+            page.views.append(dash_view)  # Добавляем новое представление
             dashboard_screen(page)  # Добавляем содержимое на страницу
             page.go("/dashboard")  # Переходим к маршруту
         else:
@@ -302,8 +308,8 @@ def main(page: ft.Page):
                     open=True,
                 )
                 from Pages.dashboard.dashboard import dashboard_screen
-
-                page.views.append(new_view)  # Добавляем новое представление
+                save_session(True, login_email_field.value)
+                page.views.append(dash_view)  # Добавляем новое представление
                 dashboard_screen(page)  # Добавляем содержимое на страницу
                 page.go("/dashboard")  # Переходим к маршруту
             except Exception as error:

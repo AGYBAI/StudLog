@@ -2,8 +2,11 @@ import flet as ft
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+from Pages.authentication.auth_screens import main, save_session
 from Pages.dashboard.profile_screen import profile_screen
 from Pages.dashboard.students_screen import students_screen
+
+
 
 # def dashboard_screen(page: ft.Page):
 #     page.views[-1].controls.append(
@@ -92,7 +95,8 @@ def dashboard_screen(page: ft.Page):
                     text="Выйти",
                     bgcolor=ft.colors.RED,
                     color=ft.colors.WHITE,
-                    on_click=lambda e: page.go("/")  # Возврат на экран авторизации
+                    on_click=lambda e: logout() ,  
+
                 )
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -129,4 +133,7 @@ def dashboard_screen(page: ft.Page):
         )
 
     )
+    def logout():
+        save_session(False, "")
+
     page.update()
