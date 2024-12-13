@@ -213,6 +213,7 @@ def main(page: ft.Page):
             return
 
         # Проверка на заполненность полей
+
         fields = {
             login_email_field: "Поле не может быть пустым!",
             login_password_field: "Поле не может быть пустым!",
@@ -222,10 +223,12 @@ def main(page: ft.Page):
         for field, error_text in fields.items():
             if not field.value:
                 field.helper_text = error_text
-                field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+                field.border_color = ft.colors.RED
                 all_fields_filled = False
+                field.update()
             else:
-                field.helper_text = ""
+                field.error_text = ""
+                field.border_color = ft.colors.BLACK
             field.update()
 
         if not all_fields_filled:
@@ -401,124 +404,210 @@ def main(page: ft.Page):
         can_reveal_password=True
     )
 
-    login = ft.Column(
+    # Переменные для элементов управления
+    login_title = ft.Text(value='Вход', weight='bold', size=20, color=ft.colors.BLACK)
+    login_divider = ft.Divider(height=1, color=ft.colors.with_opacity(0.25, ft.colors.GREY), thickness=1)
+    login_forgot_password_button = ft.TextButton(text='Восстановить пароль')
+    login_create_account_button = ft.TextButton(
+        text='Создать новую учетную запись', on_click=lambda e: registar(e))
+
+    login_submit_button = ft.ElevatedButton(
+        text='Вход',
+        color=ft.colors.WHITE,
+        bgcolor=ft.colors.BLUE_600,
+        width=550,
+        height=50,
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=button_border_radius)
+        ),
+        on_click=on_login
+    )
+
+    login_button_container = ft.Container(
+        content=login_submit_button,
+        alignment=ft.alignment.center
+    )
+
+    login_row_forgot_password = ft.Row(
+        controls=[login_forgot_password_button],
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+    )
+
+    login_row_create_account = ft.Row(
+        controls=[login_create_account_button],
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+    )
+
+    login_fields_column = ft.Column(
         controls=[
-            ft.Container(
-                bgcolor=ft.colors.WHITE,
-                border_radius=10,
-                width=550,
-                height=420,
-                padding=ft.padding.all(10),
-                content=ft.Column(
-                    controls=[
-                        ft.Text(value='Вход', weight='bold', size=20, color=ft.colors.BLACK),
-                        ft.Divider(height=1, color=ft.colors.with_opacity(0.25, ft.colors.GREY), thickness=1),
-                        ft.Column(
-                            controls=[login_email_field, login_password_field,
-                                      ft.Row(
-                                          controls=[ft.TextButton(text='Восстановить пароль')],
-                                          alignment=ft.MainAxisAlignment.SPACE_BETWEEN
-                                      ),
-                                      ft.Container(
-                                          content=ft.ElevatedButton(
-                                              text='Вход',
-                                              color=ft.colors.WHITE,
-                                              bgcolor=ft.colors.BLUE_600,
-                                              width=550,
-                                              height=50,
-                                              style=ft.ButtonStyle(
-                                                  shape=ft.RoundedRectangleBorder(radius=button_border_radius)
-                                              ),
-                                              on_click=on_login
-                                          ),
-                                          alignment=ft.alignment.center
-                                      )
-                                      ],
-                            spacing=15,
-                            alignment=ft.MainAxisAlignment.CENTER
-                        ),
-                        ft.Row(
-                            controls=[
-                                ft.TextButton(text='Создать новую учетную запись', on_click=lambda e: registar(e))],
-                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN
-                        )
-                    ],
-                    spacing=10,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER
-                )
-            )
+            login_email_field,
+            login_password_field,
+            login_row_forgot_password,
+            login_button_container
         ],
+        spacing=15,
+        alignment=ft.MainAxisAlignment.CENTER
+    )
+
+    login_content_column = ft.Column(
+        controls=[
+            login_title,
+            login_divider,
+            login_fields_column,
+            login_row_create_account
+        ],
+        spacing=10,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER
+    )
+
+    login_container = ft.Container(
+        bgcolor=ft.colors.WHITE,
+        border_radius=10,
+        width=550,
+        height=420,
+        padding=ft.padding.all(10),
+        content=login_content_column
+    )
+    global login
+    login = ft.Column(
+        controls=[login_container],
         alignment=ft.MainAxisAlignment.CENTER,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER
     )
 
-    register_fio_field = ft.TextField(label='ФИО', hint_text='ФИО', on_change=lambda e: name_change(e, register_fio_field), border=ft.InputBorder.OUTLINE, border_width=1,
-                                      hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
-                                      text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
-    register_email_field = ft.TextField(label='Адрес e-mail', hint_text='example@gmail.com', on_change=lambda e: email_change(e, register_email_field), border=ft.InputBorder.OUTLINE, border_width=1,
-                                      hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
-                                      text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
-    register_phone_field = ft.TextField(label='Номер телефона', hint_text='+7', on_change=lambda e: phone_change(e, register_phone_field), border=ft.InputBorder.OUTLINE, border_width=1,
-                                      hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
-                                      text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
-    register_group_code_field = ft.TextField(label='Код группы', hint_text='###-###-###', on_change=lambda e: group_code_change(e, register_group_code_field), border=ft.InputBorder.OUTLINE, border_width=1,
-                                      hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
-                                      text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
-    register_password_field = ft.TextField(label='Пароль', hint_text='Введите свой пароль', on_change=on_password_register_change, password=True, border=ft.InputBorder.OUTLINE, border_width=1,
-                                      hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
-                                      text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
-    register_confirm_password_field = ft.TextField(label='Повторите пароль', hint_text='Введите пароль', on_change= on_confirm_password_change, password=True, border=ft.InputBorder.OUTLINE, border_width=1,
-                                      hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
-                                      text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)))
+    # Поля ввода для регистрации
+    register_fio_field = ft.TextField(
+        label='ФИО',
+        hint_text='ФИО',
+        on_change=lambda e: name_change(e, register_fio_field),
+        border=ft.InputBorder.OUTLINE,
+        border_width=1,
+        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
+        text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK))
+    )
+
+    register_email_field = ft.TextField(
+        label='Адрес e-mail',
+        hint_text='example@gmail.com',
+        on_change=lambda e: email_change(e, register_email_field),
+        border=ft.InputBorder.OUTLINE,
+        border_width=1,
+        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
+        text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK))
+    )
+
+    register_phone_field = ft.TextField(
+        label='Номер телефона',
+        hint_text='+7',
+        on_change=lambda e: phone_change(e, register_phone_field),
+        border=ft.InputBorder.OUTLINE,
+        border_width=1,
+        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
+        text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK))
+    )
+
+    register_group_code_field = ft.TextField(
+        label='Код группы',
+        hint_text='###-###-###',
+        on_change=lambda e: group_code_change(e, register_group_code_field),
+        border=ft.InputBorder.OUTLINE,
+        border_width=1,
+        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
+        text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK))
+    )
+
+    register_password_field = ft.TextField(
+        label='Пароль',
+        hint_text='Введите свой пароль',
+        on_change=on_password_register_change,
+        password=True,
+        border=ft.InputBorder.OUTLINE,
+        border_width=1,
+        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
+        text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK))
+    )
+
+    register_confirm_password_field = ft.TextField(
+        label='Повторите пароль',
+        hint_text='Введите пароль',
+        on_change=on_confirm_password_change,
+        password=True,
+        border=ft.InputBorder.OUTLINE,
+        border_width=1,
+        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
+        text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK))
+    )
+
+    register_title = ft.Text(value='Регистрация', weight='bold', size=20, color=ft.colors.BLACK)
+    register_divider = ft.Divider(height=1, color=ft.colors.with_opacity(0.25, ft.colors.GREY), thickness=1)
+
+    register_submit_button = ft.ElevatedButton(
+        text='Регистрация',
+        color=ft.colors.WHITE,
+        bgcolor=ft.colors.BLUE_600,
+        width=550,
+        height=50,
+        style=ft.ButtonStyle(
+            shape=ft.RoundedRectangleBorder(radius=button_border_radius)
+        ),
+        on_click=on_register
+    )
+
+    register_have_account_button = ft.TextButton(
+        text='У меня уже есть аккаунт',
+        on_click=logar
+    )
+
+    register_fields_column = ft.Column(
+        controls=[
+            register_fio_field,
+            register_email_field,
+            register_phone_field,
+            register_group_code_field,
+            register_password_field,
+            register_confirm_password_field,
+            register_submit_button
+        ],
+        spacing=15
+    )
+
+    register_content_column = ft.Column(
+        controls=[
+            register_title,
+            register_divider,
+            register_fields_column,
+            ft.Row(
+                controls=[register_have_account_button],
+                alignment=ft.MainAxisAlignment.CENTER
+            )
+        ],
+        spacing=10,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER
+    )
+
+    register_container = ft.Container(
+        bgcolor=ft.colors.WHITE,
+        border_radius=10,
+        width=550,
+        padding=ft.padding.all(10),
+        content=register_content_column
+    )
 
     register = ft.Column(
-        controls=[
-            ft.Container(
-                bgcolor=ft.colors.WHITE,
-                border_radius=10,
-                width=550,
-                padding=ft.padding.all(10),
-                content=ft.Column(
-                    controls=[
-                        ft.Text(value='Регистрация', weight='bold', size=20, color=ft.colors.BLACK),
-                        ft.Divider(height=1, color=ft.colors.with_opacity(0.25, ft.colors.GREY), thickness=1),
-                        ft.Column(
-                            controls=[
-                                register_fio_field,
-                                register_email_field,
-                                register_phone_field,
-                                register_group_code_field,
-                                register_password_field,
-                                register_confirm_password_field,
-                                ft.ElevatedButton(
-                                    text='Регистрация',
-                                    color=ft.colors.WHITE,
-                                    bgcolor=ft.colors.BLUE_600,
-                                    width=550,
-                                    height=50,
-                                    style=ft.ButtonStyle(
-                                        shape=ft.RoundedRectangleBorder(radius=button_border_radius)
-                                    ),
-                                    on_click=on_register
-                                )
-                            ],
-                            spacing=15
-                        ),
-                        ft.Row(
-                            controls=[ft.TextButton(text='У меня уже есть аккаунт', on_click=logar)],
-                            alignment=ft.MainAxisAlignment.CENTER
-                        )
-                    ],
-                    spacing=10,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER
-                )
-            )
-        ],
+        controls=[register_container],
         alignment=ft.MainAxisAlignment.CENTER,
         horizontal_alignment=ft.CrossAxisAlignment.CENTER
     )
 
-    page.add(login)
+    def on_route_change(e):
+        page.views.clear()
+        if page.route == "/":
+            # Отображаем экран авторизации
+            page.views.append(ft.View(route="/", controls=[login]))
+        elif page.route == "/dashboard":
+            from Pages.dashboard.dashboard import dashboard_screen
+            dashboard_screen(page)  # Загружаем экран Dashboard
+        page.update()
 
 if __name__ == '__main__':
     ft.app(target=main)
