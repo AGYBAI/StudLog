@@ -33,11 +33,6 @@ def dashboard_screen(page: ft.Page):
         selected_index = rail.selected_index
         update_content(selected_index)
 
-    logreg = ft.View(
-        route='/login',
-        controls=[]
-    )
-
     def update_content(selected_index):
         content.controls.clear()
         if selected_index == 0:
@@ -101,7 +96,7 @@ def dashboard_screen(page: ft.Page):
                     text="Выйти",
                     bgcolor=ft.colors.RED,
                     color=ft.colors.WHITE,
-                    on_click=lambda e: logout(),
+                    on_click=lambda e: logout() ,  
 
                 )
             ],
@@ -140,9 +135,6 @@ def dashboard_screen(page: ft.Page):
 
     )
     def logout():
-        from Pages.authentication.auth_screens import main
         save_session(False, "")
-        page.views.clear()
-        page.go("/")
 
     page.update()
