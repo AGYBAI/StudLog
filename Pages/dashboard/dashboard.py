@@ -2,23 +2,25 @@ import flet as ft
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
-from Pages.authentication.auth_screens import main, save_session
+from Pages.authentication.auth_screens import auth_screen, main, save_session
 from Pages.dashboard.profile_screen import profile_screen
 from Pages.dashboard.students_screen import students_screen
 
-
-
-# def dashboard_screen(page: ft.Page):
-#     page.views[-1].controls.append(
-#         ft.Row(
-#             controls=[
-#                 ft.Text("Добро пожаловать в StudLog!"),
-#                 # Добавьте остальные элементы интерфейса
-#             ]
-#         )
-#     )
-#     page.update()
-
+login_view = ft.View(
+        route="/auth_screen",
+        controls=[]  # Создаем пустую страницу
+    )
+def logout(page: ft.Page):
+    # Сохраняем состояние сессии
+    save_session(False, "")
+    page.views.clear()
+    page.update()
+    auth_screen_view = auth_screen(page)
+    page.views.append(auth_screen_view)
+    page.go("/auth_screen")
+    
+    # Возвращаемся на основной экран
+    login_view(page)
 def dashboard_screen(page: ft.Page):
     page.title = "StudLog"
     page.horizontal_alignment = ft.CrossAxisAlignment.START
@@ -95,8 +97,7 @@ def dashboard_screen(page: ft.Page):
                     text="Выйти",
                     bgcolor=ft.colors.RED,
                     color=ft.colors.WHITE,
-                    on_click=lambda e: logout() ,  
-
+                    on_click=lambda e: logout(page),  # Передаём page в функцию 
                 )
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -117,7 +118,7 @@ def dashboard_screen(page: ft.Page):
         expand=True,
     )
 
-    page.views[1].controls.append(
+    page.views[-1].controls.append(
         ft.Row(
             controls=[
                 rail,
@@ -133,7 +134,5 @@ def dashboard_screen(page: ft.Page):
         )
 
     )
-    def logout():
-        save_session(False, "")
-
+    
     page.update()
