@@ -5,6 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"
 from Pages.authentication.auth_screens import auth_screen, main, save_session
 from Pages.dashboard.analytics_screen import analytics_screen
 from Pages.dashboard.students_screen import students_screen
+from Pages.utils import language_selector
 
 login_view = ft.View(
         route="/auth_screen",

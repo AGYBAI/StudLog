@@ -5,6 +5,22 @@ import json
 from psycopg2 import connect
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+from Pages.translations import translations
+from Pages.utils import language_selector
+
+# Глобальная переменная для текущего языка
+current_language = "kz"
+
+# Функция для получения перевода
+def t(key):
+    return translations.get(current_language, {}).get(key, key)
+
+# Функция для изменения языка
+def change_language(page, lang):
+    global current_language
+    current_language = lang
+    page.update()
+
 
 con = connect(dbname="railway", user="postgres", password="dfFudMqjdNUrRDNEvvTVVvBaNztZfxaP",
               host="autorack.proxy.rlwy.net", port="33741")
@@ -118,32 +134,26 @@ def auth_screen(page: ft.Page):
             login_password_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
 
     login_email_field = ft.TextField(
-        label='Адрес e-mail',
-        hint_text='example@gmail.com',
-        on_change=lambda e: email_change(e, login_email_field),
+        label=t("email"),  # Перевод метки
+        hint_text="example@gmail.com",
         text_vertical_align=-0.30,
         border=ft.InputBorder.OUTLINE,
         border_width=1,
-        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
-        text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK))
     )
 
     login_password_field = ft.TextField(
-        label='Пароль',
-        hint_text='Введите свой пароль',
-        on_change=on_login_password_change,
+        label=t("password"),  # Перевод метки
+        hint_text=t("type_password"),
         text_vertical_align=-0.30,
         border=ft.InputBorder.OUTLINE,
         border_width=1,
-        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
-        text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)),
         password=True,
-        can_reveal_password=True
     )
 
     login_view = ft.View(
         route="/auth_screen",
         controls=[
+            language_selector(page),
             ft.Container(
                 expand=True,
                 bgcolor=ft.colors.WHITE,
@@ -159,7 +169,7 @@ def auth_screen(page: ft.Page):
                             padding=ft.padding.all(10),
                             content=ft.Column(
                                 controls=[
-                                    ft.Text(value='Вход', weight='bold', size=20, color=ft.colors.BLACK),
+                                    ft.Text(value=t('login'), weight='bold', size=20, color=ft.colors.BLACK),
                                     ft.Divider(height=1, color=ft.colors.with_opacity(0.25, ft.colors.GREY), thickness=1),
                                     ft.Column(
                                         controls=[login_email_field, login_password_field,
