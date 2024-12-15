@@ -18,32 +18,32 @@ def add_student_dialog(page):
     def save_student(e):
         # Сохраняем данные студента
         student_info = {
-            "full_name": fio_field.value,
-            "date_of_birth": dob_field.value,
-            "origin_school": school_field.value,
-            "region": region_field.value,
-            "district": district_field.value,
-            "city": city_field.value,
-            "address": address_field.value,
-            "parent_full_name": parents_field.value,
-            "factual_address": factual_address_field.value,
-            "hobbies": hobbies_field.value,
-            "nationality": nationality_field.value,
-            "citizenship": citizenship_field.value,
-            "residence_permit": residence_permit_field.value,
-            "document_expiry_date": document_expiry_date_field.value,
-            "social_status": social_status_field.value,
-            "orphan_status": orphan_status_field.value,
-            "disability_status": disability_status_field.value,
-            "family_support_info": family_support_info_field.value,
-            "previous_residence": previous_residence_field.value,
-            "current_residence": current_residence_field.value,
-            "housing_type": housing_type_field.value,
-            "parents_job_education": parents_job_education_field.value,
-            "family_social_help": family_social_help_field.value,
-            "expelled": expelled_field.value,
-            "order_number": order_number_field.value,
-        }
+        "full_name": fio_field.value or "",
+        "date_of_birth": dob_field.value or None,
+        "origin_school": school_field.value or "",
+        "region": region_field.value or "",
+        "district": district_field.value or "",
+        "city": city_field.value or "",
+        "address": address_field.value or "",
+        "parent_full_name": parents_field.value or "",
+        "factual_address": factual_address_field.value or "",
+        "hobbies": hobbies_field.value or "",
+        "nationality": nationality_field.value or "",
+        "citizenship": citizenship_field.value or "",
+        "residence_permit": residence_permit_field.value or "",
+        "document_expiry_date": document_expiry_date_field.value or None,
+        "social_status": social_status_field.value or "",
+        "orphan_status": orphan_status_field.value,
+        "disability_status": disability_status_field.value,
+        "family_support_info": family_support_info_field.value or "",
+        "previous_residence": previous_residence_field.value or "",
+        "current_residence": current_residence_field.value or "",
+        "housing_type": housing_type_field.value or "",
+        "parents_job_education": parents_job_education_field.value or "",
+        "family_social_help": family_social_help_field.value or "",
+        "expelled": expelled_field.value,
+        "order_number": order_number_field.value or "",
+    }
 
         # Подключаемся к базе данных и сохраняем данные
         try:
@@ -90,9 +90,19 @@ def add_student_dialog(page):
             conn.commit()  # Подтверждаем изменения
             cursor.close()
             conn.close()
+            
+            # Уведомление об успешном сохранении
+            page.snack_bar = ft.SnackBar(content=ft.Text("Студент успешно добавлен!"))
+            page.snack_bar.open = True
+            page.update()
+            
             dialog.close()  # Закрываем диалог после сохранения
             update_students_list()  # Обновляем список студентов
         except Exception as e:
+            # Более подробное уведомление об ошибке
+            page.snack_bar = ft.SnackBar(content=ft.Text(f"Ошибка при сохранении: {str(e)}"))
+            page.snack_bar.open = True
+            page.update()
             print(f"Ошибка при сохранении данных: {e}")
 
     # Поля для ввода данных студента
@@ -123,36 +133,41 @@ def add_student_dialog(page):
     order_number_field = ft.TextField(label="Номер приказа")
 
     dialog = ft.AlertDialog(
-        title=ft.Text("Добавить студента"),  # Используем ft.Text вместо строки
-        content=ft.Column(
-            controls=[
-                fio_field,
-                dob_field,
-                school_field,
-                region_field,
-                district_field,
-                city_field,
-                address_field,
-                parents_field,
-                factual_address_field,
-                hobbies_field,
-                nationality_field,
-                citizenship_field,
-                residence_permit_field,
-                document_expiry_date_field,
-                social_status_field,
-                orphan_status_field,
-                disability_status_field,
-                family_support_info_field,
-                previous_residence_field,
-                current_residence_field,
-                housing_type_field,
-                parents_job_education_field,
-                family_social_help_field,
-                expelled_field,
-                order_number_field,
-            ],
-            spacing=10,
+        title=ft.Text("Добавить студента"),
+        content=ft.Container(
+            content=ft.ListView(  # Заменяем Column на ListView
+                controls=[
+                    fio_field,
+                    dob_field,
+                    school_field,
+                    region_field,
+                    district_field,
+                    city_field,
+                    address_field,
+                    parents_field,
+                    factual_address_field,
+                    hobbies_field,
+                    nationality_field,
+                    citizenship_field,
+                    residence_permit_field,
+                    document_expiry_date_field,
+                    social_status_field,
+                    orphan_status_field,
+                    disability_status_field,
+                    family_support_info_field,
+                    previous_residence_field,
+                    current_residence_field,
+                    housing_type_field,
+                    parents_job_education_field,
+                    family_social_help_field,
+                    expelled_field,
+                    order_number_field,
+                ],
+                spacing=10,
+                expand=True,  # Позволяет ListView расширяться
+            ),
+            width=700,
+            height=500,
         ),
         actions=[
             ft.TextButton("Сохранить", on_click=save_student),
@@ -162,6 +177,7 @@ def add_student_dialog(page):
 
     page.dialog = dialog
     dialog.open = True
+    page.update()
 
 def update_students_list():
     # Функция для обновления списка студентов на главной странице
@@ -176,7 +192,6 @@ def update_students_list():
         for row in rows:
             content.controls.append(
                 ft.Text(f"{row[1]} - {row[3]} - {row[4]}"))  # Пример отображения ФИО, области и района
-
         cursor.close()
         conn.close()
     except Exception as e:

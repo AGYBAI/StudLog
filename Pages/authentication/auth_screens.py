@@ -124,8 +124,8 @@ def auth_screen(page: ft.Page):
         text_vertical_align=-0.30,
         border=ft.InputBorder.OUTLINE,
         border_width=1,
-        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.Colors.with_opacity(0.4, ft.Colors.BLACK)),
-        text_style=ft.TextStyle(size=12, weight='bold', color=ft.Colors.with_opacity(0.9, ft.Colors.BLACK))
+        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
+        text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK))
     )
 
     login_password_field = ft.TextField(
@@ -135,8 +135,8 @@ def auth_screen(page: ft.Page):
         text_vertical_align=-0.30,
         border=ft.InputBorder.OUTLINE,
         border_width=1,
-        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.Colors.with_opacity(0.4, ft.Colors.BLACK)),
-        text_style=ft.TextStyle(size=12, weight='bold', color=ft.Colors.with_opacity(0.9, ft.Colors.BLACK)),
+        hint_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.4, ft.colors.BLACK)),
+        text_style=ft.TextStyle(size=12, weight='bold', color=ft.colors.with_opacity(0.9, ft.colors.BLACK)),
         password=True,
         can_reveal_password=True
     )
@@ -146,21 +146,21 @@ def auth_screen(page: ft.Page):
         controls=[
             ft.Container(
                 expand=True,
-                bgcolor=ft.Colors.WHITE,
+                bgcolor=ft.colors.WHITE,
                 border_radius=0,
                 padding=ft.padding.all(0),
                 content=ft.Column(
                     controls=[
                         ft.Container(
-                            bgcolor=ft.Colors.WHITE,
+                            bgcolor=ft.colors.WHITE,
                             border_radius=10,
                             width=550,
                             height=420,
                             padding=ft.padding.all(10),
                             content=ft.Column(
                                 controls=[
-                                    ft.Text(value='Вход', weight='bold', size=20, color=ft.Colors.BLACK),
-                                    ft.Divider(height=1, color=ft.Colors.with_opacity(0.25, ft.Colors.GREY), thickness=1),
+                                    ft.Text(value='Вход', weight='bold', size=20, color=ft.colors.BLACK),
+                                    ft.Divider(height=1, color=ft.colors.with_opacity(0.25, ft.colors.GREY), thickness=1),
                                     ft.Column(
                                         controls=[login_email_field, login_password_field,
                                                   ft.Row(
@@ -171,8 +171,8 @@ def auth_screen(page: ft.Page):
                                                   ft.Container(
                                                       content=ft.ElevatedButton(
                                                           text='Вход',
-                                                          color=ft.Colors.WHITE,
-                                                          bgcolor=ft.Colors.BLUE_600,
+                                                          color=ft.colors.WHITE,
+                                                          bgcolor=ft.colors.BLUE_600,
                                                           width=550,
                                                           height=50,
                                                           style=ft.ButtonStyle(
@@ -208,7 +208,7 @@ def main(page: ft.Page):
     page.window.resizable = False
     page.window.maximized = True
     page.padding = ft.padding.all(0)
-    page.bgcolor = ft.Colors.WHITE
+    page.bgcolor = ft.colors.WHITE
 
     if is_user_logged_in():
         from Pages.dashboard.dashboard import dashboard_screen
@@ -216,6 +216,7 @@ def main(page: ft.Page):
         page.views.append(dash_view)
         dashboard_screen(page)
         page.go("/dashboard")
+        page.update()
     else:
         auth_screen_view = auth_screen(page)
         page.views.append(auth_screen_view)

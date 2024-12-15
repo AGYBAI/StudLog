@@ -9,7 +9,7 @@ from Pages.authentication.auth_screens import save_session
 
 
 
-def profile_screen(page: ft.Page):
+def analytics_screen(page: ft.Page):
     return ft.Container(
         content=ft.Column(
             controls=[

@@ -3,7 +3,7 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from Pages.authentication.auth_screens import auth_screen, main, save_session
-from Pages.dashboard.profile_screen import profile_screen
+from Pages.dashboard.analytics_screen import analytics_screen
 from Pages.dashboard.students_screen import students_screen
 
 login_view = ft.View(
@@ -29,12 +29,10 @@ def dashboard_screen(page: ft.Page):
         if selected_index == 0:
             content.controls.append(students_screen(page))
         elif selected_index == 1:
-            content.controls.append(profile_screen(page))
+            content.controls.append(analytics_screen(page))
         elif selected_index == 2:
-            content.controls.append(ft.Text("Статистика использования", size=20, color=ft.Colors.BLACK))
-        elif selected_index == 3:
             content.controls.append(ft.Text("Настройки приложения", size=20, color=ft.Colors.BLACK))
-        elif selected_index == 4:
+        elif selected_index == 3:
             content.controls.append(ft.Text("Поддержка пользователей", size=20, color=ft.Colors.BLACK))
         content.update()
 
@@ -67,19 +65,6 @@ def dashboard_screen(page: ft.Page):
             controls=[
                 ft.Divider(thickness=1, color=ft.Colors.BLACK),
                 ft.Row(
-                    controls=[
-                        ft.CircleAvatar(
-                            content=ft.Text("ДК"),
-                            radius=40,
-                        ),
-                        ft.Column(
-                            controls=[
-                                ft.Text("Данияр Канатов", weight=ft.FontWeight.BOLD),
-                                ft.Text("example@gmail.com", size=12)
-                            ],
-                            alignment=ft.MainAxisAlignment.CENTER,
-                        ),
-                    ],
                     spacing=10,
                 ),
                 ft.Divider(thickness=1, color=ft.Colors.BLACK),
@@ -94,7 +79,6 @@ def dashboard_screen(page: ft.Page):
         ),
         destinations=[
             create_rail_destination(ft.icons.HOME_OUTLINED, ft.icons.HOME, "Главная"),
-            create_rail_destination(ft.icons.ACCOUNT_BOX_OUTLINED, ft.icons.ACCOUNT_BOX, "Профиль"),
             create_rail_destination(ft.icons.ANALYTICS_OUTLINED, ft.icons.ANALYTICS, "Статистика"),
             create_rail_destination(ft.icons.SETTINGS_OUTLINED, ft.icons.SETTINGS, "Настройки"),
             create_rail_destination(ft.icons.CONTACT_SUPPORT_OUTLINED, ft.icons.CONTACT_SUPPORT, "Поддержка"),
