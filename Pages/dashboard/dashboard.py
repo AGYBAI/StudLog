@@ -10,17 +10,7 @@ login_view = ft.View(
         route="/auth_screen",
         controls=[]  # Создаем пустую страницу
     )
-def logout(page: ft.Page):
-    # Сохраняем состояние сессии
-    save_session(False, "")
-    page.views.clear()
-    page.update()
-    auth_screen_view = auth_screen(page)
-    page.views.append(auth_screen_view)
-    page.go("/auth_screen")
-    
-    # Возвращаемся на основной экран
-    login_view(page)
+
 def dashboard_screen(page: ft.Page):
     page.title = "StudLog"
     page.horizontal_alignment = ft.CrossAxisAlignment.START
@@ -28,7 +18,7 @@ def dashboard_screen(page: ft.Page):
     page.window.resizable = False
     page.window.maximized = True
     page.padding = ft.padding.all(0)
-    page.bgcolor = ft.colors.WHITE
+    page.bgcolor = ft.Colors.WHITE
 
     def change_screen(e):
         selected_index = rail.selected_index
@@ -37,15 +27,15 @@ def dashboard_screen(page: ft.Page):
     def update_content(selected_index):
         content.controls.clear()
         if selected_index == 0:
-            content.controls.append(students_screen())
+            content.controls.append(students_screen(page))
         elif selected_index == 1:
-            content.controls.append(profile_screen())
+            content.controls.append(profile_screen(page))
         elif selected_index == 2:
-            content.controls.append(ft.Text("Статистика использования", size=20, color=ft.colors.BLACK))
+            content.controls.append(ft.Text("Статистика использования", size=20, color=ft.Colors.BLACK))
         elif selected_index == 3:
-            content.controls.append(ft.Text("Настройки приложения", size=20, color=ft.colors.BLACK))
+            content.controls.append(ft.Text("Настройки приложения", size=20, color=ft.Colors.BLACK))
         elif selected_index == 4:
-            content.controls.append(ft.Text("Поддержка пользователей", size=20, color=ft.colors.BLACK))
+            content.controls.append(ft.Text("Поддержка пользователей", size=20, color=ft.Colors.BLACK))
         content.update()
 
     def create_rail_destination(icon, selected_icon, label):
@@ -56,7 +46,7 @@ def dashboard_screen(page: ft.Page):
         )
 
     rail = ft.NavigationRail(
-        bgcolor=ft.colors.GREY_200,
+        bgcolor=ft.Colors.GREY_200,
         selected_index=0,
         label_type=ft.NavigationRailLabelType.ALL,
         min_width=300,
@@ -68,14 +58,14 @@ def dashboard_screen(page: ft.Page):
                     width=200,
                     height=200,
                 ),
-                ft.Divider(thickness=1, color=ft.colors.BLACK),
+                ft.Divider(thickness=1, color=ft.Colors.BLACK),
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
         group_alignment=-0.9,
         trailing=ft.Column(
             controls=[
-                ft.Divider(thickness=1, color=ft.colors.BLACK),
+                ft.Divider(thickness=1, color=ft.Colors.BLACK),
                 ft.Row(
                     controls=[
                         ft.CircleAvatar(
@@ -92,12 +82,12 @@ def dashboard_screen(page: ft.Page):
                     ],
                     spacing=10,
                 ),
-                ft.Divider(thickness=1, color=ft.colors.BLACK),
+                ft.Divider(thickness=1, color=ft.Colors.BLACK),
                 ft.ElevatedButton(
                     text="Выйти",
-                    bgcolor=ft.colors.RED,
-                    color=ft.colors.WHITE,
-                    on_click=lambda e: logout(page),  # Передаём page в функцию 
+                    bgcolor=ft.Colors.RED,
+                    color=ft.Colors.WHITE,
+                    on_click=lambda e: logout(page),  # Передаём page в функцию
                 )
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -113,7 +103,7 @@ def dashboard_screen(page: ft.Page):
     )
 
     content = ft.Column(
-        controls=[students_screen()],
+        controls=[],
         alignment=ft.MainAxisAlignment.START,
         expand=True,
     )
@@ -125,14 +115,25 @@ def dashboard_screen(page: ft.Page):
                 ft.Container(
                     content,
                     expand=True,
-                    bgcolor=ft.colors.WHITE,
+                    bgcolor=ft.Colors.WHITE,
                     padding=ft.padding.all(16),
                     border_radius=ft.border_radius.all(12),
                 ),
             ],
             expand=True,
         )
-
     )
-    
+
     page.update()
+
+
+def logout(page: ft.Page):
+    from Pages.authentication.auth_screens import auth_screen
+
+    # Закрытие текущей сессии
+    save_session(False, "")
+    page.views.clear()  # Удаляем все представления
+    auth_view = auth_screen(page)  # Получаем представление экрана авторизации
+    page.views.append(auth_view)  # Добавляем экран авторизации в список представлений
+    page.go("/auth_screen")  # Переходим к маршруту авторизации
+

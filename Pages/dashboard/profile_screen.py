@@ -9,7 +9,7 @@ from Pages.authentication.auth_screens import save_session
 
 
 
-def profile_screen():
+def profile_screen(page: ft.Page):
     return ft.Container(
         content=ft.Column(
             controls=[
@@ -25,11 +25,11 @@ def profile_screen():
                         ft.Column(
                             controls=[
                                 ft.Text("Данияр Канатов", size=24, weight=ft.FontWeight.BOLD),
-                                ft.Text("Почта e-mail:", size=16, color=ft.colors.GREY),
+                                ft.Text("Почта e-mail:", size=16, color=ft.Colors.GREY),
                                 ft.Text("example@gmail.com", size=16),
-                                ft.Text("Номер телефона:", size=16, color=ft.colors.GREY),
+                                ft.Text("Номер телефона:", size=16, color=ft.Colors.GREY),
                                 ft.Text("+7 777 777 7777", size=16),
-                                ft.Text("Куратор группы:", size=16, color=ft.colors.GREY),
+                                ft.Text("Куратор группы:", size=16, color=ft.Colors.GREY),
                                 ft.Text("ПО - 2502", size=16),
                             ],
                             spacing=8,
