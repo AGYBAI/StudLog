@@ -180,23 +180,50 @@ def add_student_dialog(page):
     page.update()
 
 def update_students_list():
-    # Функция для обновления списка студентов на главной странице
+    global students_table, content
     content.controls.clear()
     try:
         conn = connect_to_db()
         cursor = conn.cursor()
 
-        cursor.execute("SELECT * FROM students")
+        # Измените SQL-запрос в соответствии с реальной структурой вашей таблицы
+        cursor.execute("""
+            SELECT full_name, date_of_birth, origin_school, region, district, city
+            FROM students
+        """)
         rows = cursor.fetchall()
 
-        for row in rows:
-            content.controls.append(
-                ft.Text(f"{row[1]} - {row[3]} - {row[4]}"))  # Пример отображения ФИО, области и района
+        students_table = ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("ФИО")),
+                ft.DataColumn(ft.Text("Дата рождения")),
+                ft.DataColumn(ft.Text("Школа")),
+                ft.DataColumn(ft.Text("Область")),
+                ft.DataColumn(ft.Text("Район")),
+                ft.DataColumn(ft.Text("Город")),
+            ],
+            rows=[
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(str(row[0]))),  # ФИО
+                        ft.DataCell(ft.Text(str(row[1]))),  # Группа
+                        ft.DataCell(ft.Text(str(row[2]))),  # E-mail
+                        ft.DataCell(ft.Text(str(row[3]))),  # Номер телефона
+                        ft.DataCell(ft.Text(str(row[4]))),  # ИИН
+                        ft.DataCell(ft.Text(str(row[5]))),  # Адрес проживания
+                    ]
+                ) for row in rows
+            ]
+        )
+
+        content.controls.append(students_table)
+        
         cursor.close()
         conn.close()
     except Exception as e:
         print(f"Ошибка при получении данных: {e}")
-
+        # Добавим обработку ошибки для пользователя
+        content.controls.append(ft.Text(f"Ошибка загрузки данных: {e}", color=ft.colors.RED))
 
 def students_screen(page):
     def on_search_change(e):
@@ -228,6 +255,9 @@ def students_screen(page):
         spacing=20,
         alignment=ft.MainAxisAlignment.START,
     )
+
+
+    
 
     global content
     content = ft.Column(

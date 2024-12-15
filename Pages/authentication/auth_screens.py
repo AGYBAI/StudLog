@@ -9,7 +9,7 @@ from Pages.translations import translations
 from Pages.utils import language_selector
 
 # Глобальная переменная для текущего языка
-current_language = "kz"
+current_language = "ru"
 
 # Функция для получения перевода
 def t(key):
