@@ -13,25 +13,20 @@ def t(key):
 def change_language(page, lang):
     global current_language
     current_language = lang  # Устанавливаем новый язык
-    page.update()  # Обновляем страницу, чтобы изменения вступили в силу
+    page.update()  # Перерисовываем все элементы страницы
 
-# Функция для создания кнопки выбора языка
+# Функция для создания Dropdown для выбора языка
 def language_selector(page):
-    # Текст, который будет отображать выбранный язык
-    current_language_text = t("language")  # Получаем перевод для текущего языка
-
-    # Создаем PopupMenuButton для выбора языка
-    return ft.PopupMenuButton(
-        content=ft.Text(current_language_text, size=16, weight="bold", color=ft.Colors.BLACK),  # Текст на кнопке
-        items=[
-            ft.PopupMenuItem(
-                text="Русский",
-                on_click=lambda e: change_language(page, "ru"),
-            ),
-            ft.PopupMenuItem(
-                text="Қазақша",
-                on_click=lambda e: change_language(page, "kz"),
-            ),
+    return ft.Dropdown(
+        width=150,  # Устанавливаем ширину выпадающего списка
+        value=current_language,  # Устанавливаем текущий выбранный язык
+        options=[
+            ft.dropdown.Option("ru", text="Русский"),  # Опция для русского языка
+            ft.dropdown.Option("kz", text="Қазақша"),  # Опция для казахского языка
         ],
+        on_change=lambda e: change_language(page, e.control.value),  # Изменение языка при выборе
+        border_color=ft.Colors.BLUE_600,  # Цвет обводки
+        border_width=2,  # Толщина обводки
+        border_radius=8,  # Скругленные углы
+        text_style=ft.TextStyle(size=14, weight="bold", color=ft.Colors.BLACK),  # Стили текста
     )
-    page.update()

@@ -7,15 +7,30 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from Pages.translations import translations
 from Pages.utils import language_selector
+# from Pages.utils import t
 
 # Глобальная переменная для текущего языка
-current_language = "ru"
+current_language = "kz"
 
-# Функция для получения перевода
+translations = {
+    "ru": {
+        "login": "Вход",
+        "email": "Электронная почта",
+        "password": "Пароль",
+        "type_password": "Введите свой пароль",
+    },
+    "kz": {
+        "login": "Кіру",
+        "email": "Электрондық пошта",
+        "password": "Құпия сөз",
+        "type_password": "Құпия сөзді енгізіңіз",
+    }
+}
+# # Функция для получения перевода
 def t(key):
     return translations.get(current_language, {}).get(key, key)
 
-# Функция для изменения языка
+# # Функция для изменения языка
 def change_language(page, lang):
     global current_language
     current_language = lang
@@ -59,11 +74,11 @@ def auth_screen(page: ft.Page):
         field.update()
     
     def on_login_password_change(e):
-        if len(e.control.value) >= 6:
+        if len(e.control.value) >= 8:
             login_password_field.error_text = None
             login_password_field.border_color = "green"
         else:
-            login_password_field.error_text = "Пароль должен быть не менее 6 символов"
+            login_password_field.error_text = "Пароль должен быть не менее 8 символов"
             login_password_field.border_color = "red"
         login_password_field.update()
 
@@ -139,7 +154,9 @@ def auth_screen(page: ft.Page):
         text_vertical_align=-0.30,
         border=ft.InputBorder.OUTLINE,
         border_width=1,
+        on_change=lambda e: email_change(e, login_email_field),
     )
+    page.update()
 
     login_password_field = ft.TextField(
         label=t("password"),  # Перевод метки
@@ -148,67 +165,79 @@ def auth_screen(page: ft.Page):
         border=ft.InputBorder.OUTLINE,
         border_width=1,
         password=True,
+        on_change=on_login_password_change
     )
+    page.update()
 
     login_view = ft.View(
         route="/auth_screen",
         controls=[
-            language_selector(page),
             ft.Container(
                 expand=True,
-                bgcolor=ft.colors.WHITE,
+                bgcolor=ft.Colors.WHITE,
                 border_radius=0,
                 padding=ft.padding.all(0),
                 content=ft.Column(
                     controls=[
+                        # Добавляем Dropdown для выбора языка
+                        ft.Row(
+                            controls=[
+                                language_selector(page),  # Добавляем функцию language_selector
+                            ],
+                            alignment=ft.MainAxisAlignment.END,  # Выравниваем Dropdown вправо
+                        ),
                         ft.Container(
-                            bgcolor=ft.colors.WHITE,
+                            bgcolor=ft.Colors.WHITE,
                             border_radius=10,
                             width=550,
                             height=420,
                             padding=ft.padding.all(10),
                             content=ft.Column(
                                 controls=[
-                                    ft.Text(value=t('login'), weight='bold', size=20, color=ft.colors.BLACK),
-                                    ft.Divider(height=1, color=ft.colors.with_opacity(0.25, ft.colors.GREY), thickness=1),
+                                    ft.Text(value=t("login"), weight="bold", size=20, color=ft.Colors.BLACK),
+                                    ft.Divider(height=1, color=ft.Colors.with_opacity(0.25, ft.Colors.GREY),
+                                               thickness=1),
                                     ft.Column(
-                                        controls=[login_email_field, login_password_field,
-                                                  ft.Row(
-                                                      controls=[
-                                                          ft.TextButton(text='Забыли пароль?')],
-                                                      alignment=ft.MainAxisAlignment.CENTER
-                                                  ),
-                                                  ft.Container(
-                                                      content=ft.ElevatedButton(
-                                                          text='Вход',
-                                                          color=ft.colors.WHITE,
-                                                          bgcolor=ft.colors.BLUE_600,
-                                                          width=550,
-                                                          height=50,
-                                                          style=ft.ButtonStyle(
-                                                              shape=ft.RoundedRectangleBorder(radius=button_border_radius)
-                                                          ),
-                                                          on_click=on_login
-                                                      ),
-                                                      alignment=ft.alignment.center
-                                                  )
-                                                  ],
+                                        controls=[
+                                            login_email_field,
+                                            login_password_field,
+                                            ft.Row(
+                                                controls=[
+                                                ],
+                                                alignment=ft.MainAxisAlignment.CENTER,
+                                            ),
+                                            ft.Container(
+                                                content=ft.ElevatedButton(
+                                                    text=t("login"),  # Используем t() для перевода
+                                                    color=ft.Colors.WHITE,
+                                                    bgcolor=ft.Colors.BLUE_600,
+                                                    width=550,
+                                                    height=50,
+                                                    style=ft.ButtonStyle(
+                                                        shape=ft.RoundedRectangleBorder(radius=button_border_radius)
+                                                    ),
+                                                    on_click=on_login,
+                                                ),
+                                                alignment=ft.alignment.center,
+                                            ),
+                                        ],
                                         spacing=15,
-                                        alignment=ft.MainAxisAlignment.CENTER
-                                    )
+                                        alignment=ft.MainAxisAlignment.CENTER,
+                                    ),
                                 ],
                                 spacing=10,
-                                horizontal_alignment=ft.CrossAxisAlignment.CENTER
-                            )
-                        )
+                                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                            ),
+                        ),
                     ],
                     expand=True,
                     alignment=ft.MainAxisAlignment.CENTER,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER
-                )
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
             )
-        ]
+        ],
     )
+    page.update()
 
     return login_view
 
@@ -218,7 +247,7 @@ def main(page: ft.Page):
     page.window.resizable = False
     page.window.maximized = True
     page.padding = ft.padding.all(0)
-    page.bgcolor = ft.colors.WHITE
+    page.bgcolor = ft.Colors.WHITE
 
     if is_user_logged_in():
         from Pages.dashboard.dashboard import dashboard_screen
