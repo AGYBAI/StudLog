@@ -11,6 +11,70 @@ def connect_to_db():
         port="33741"
     )
 
+
+
+def on_group_change(page, e):
+    update_students_list(page, selected_group=e.control.value)
+    page.update()
+
+def on_course_change(page, e):
+    update_students_list(page, selected_course=e.control.value)
+    page.update()
+
+def select_group_course_dialog(page):
+    try:
+        conn = connect_to_db()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT DISTINCT group_name FROM students WHERE group_name IS NOT NULL")
+        groups = [row[0] for row in cursor.fetchall()]
+        
+        cursor.execute("SELECT DISTINCT course_number FROM students WHERE course_number IS NOT NULL")
+        courses = [row[0] for row in cursor.fetchall()]
+        
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        groups = []
+        courses = []
+        page.snack_bar = ft.SnackBar(content=ft.Text(f"Ошибка получения групп и курсов: {str(e)}"))
+        page.snack_bar.open = True
+        page.update()
+
+    group_dropdown = ft.Dropdown(
+        label="Выберите группу",
+        options=[ft.dropdown.Option(group) for group in groups],
+        width=300,
+        on_change=lambda e: on_group_change(page, e)  # Передаем page явно
+    )
+    
+    course_dropdown = ft.Dropdown(
+        label="Выберите курс", 
+        options=[ft.dropdown.Option(str(course)) for course in courses],
+        width=300,
+        on_change=lambda e: on_course_change(page, e)  # Передаем page явно
+    )
+
+    dialog = ft.AlertDialog(
+        title=ft.Text("Фильтр групп и курсов"),
+        content=ft.Column(
+            controls=[
+                group_dropdown,
+                course_dropdown
+            ],
+            spacing=10,
+            width=350
+        ),
+        actions=[
+            ft.TextButton("Применить", on_click=lambda e: page.close(dialog)),
+            ft.TextButton("Отмена", on_click=lambda e: page.close(dialog))
+        ]
+    )
+
+    page.dialog = dialog
+    dialog.open = True
+    page.update()
+
 def view_student_details(page, student_id):
     try:
         conn = connect_to_db()
@@ -50,7 +114,9 @@ def view_student_details(page, student_id):
                     ft.Text(f"Образование и должность родителей: {student[22]}"),
                     ft.Text(f"Адресная социальная помощь: {student[23]}"),
                     ft.Text(f"Статус отчисления: {'Да' if student[24] else 'Нет'}"),
-                    ft.Text(f"Номер приказа: {student[25]}")
+                    ft.Text(f"Номер приказа: {student[25]}"),
+                    ft.Text(f"Группа: {student[26] if student[26] else 'Не указано'}"),
+                    ft.Text(f"Курс: {student[27] if student[27] else 'Не указан'}"),
                     ],
                     spacing=10,
                     expand=True,
@@ -107,6 +173,8 @@ def edit_student_dialog(page, student_id):
             family_social_help_field = ft.TextField(label="Адресная соцпомощь", value=student[23])
             expelled_field = ft.Checkbox(label="Статус отчисления", value=student[24])
             order_number_field = ft.TextField(label="Номер приказа", value=student[25])
+            group_name_field = ft.TextField(label="Группа")
+            course_number_field = ft.TextField(label="Курс")
 
             def save_edited_student(e):
                 try:
@@ -138,7 +206,9 @@ def edit_student_dialog(page, student_id):
                     parents_job_education = %s,
                     family_social_help = %s,
                     expelled = %s,
-                    order_number = %s
+                    order_number = %s,
+                    group_name = %s,
+                    course_mumber = %s,
                     WHERE id = %s
                     """)
                     cursor.execute(update_query, (
@@ -167,6 +237,8 @@ def edit_student_dialog(page, student_id):
                         family_social_help_field.value,
                         expelled_field.value,
                         order_number_field.value,
+                        group_name_field.value,
+                        course_number_field.value,
                         student_id
                     ),),
                     conn.commit()
@@ -211,7 +283,9 @@ def edit_student_dialog(page, student_id):
                             parents_job_education_field,
                             family_social_help_field,
                             expelled_field,
-                            order_number_field
+                            order_number_field,
+                            group_name_field,
+                            course_number_field
                         ],
                         spacing=10,
                         expand=True
@@ -281,7 +355,7 @@ def update_students_list(page):
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT id, full_name, date_of_birth, origin_school, region, district, city
+            SELECT id, full_name, date_of_birth, origin_school, region, district, city, group_name
             FROM students
         """)
         rows = cursor.fetchall()
@@ -294,7 +368,9 @@ def update_students_list(page):
                 ft.DataColumn(ft.Text("Область")),
                 ft.DataColumn(ft.Text("Район")),
                 ft.DataColumn(ft.Text("Город")),
+                ft.DataColumn(ft.Text("Группа")),
                 ft.DataColumn(ft.Text("Действия")),
+
             ],
             rows=[
                 ft.DataRow(
@@ -305,6 +381,7 @@ def update_students_list(page):
                         ft.DataCell(ft.Text(str(row[4]))),  # Область
                         ft.DataCell(ft.Text(str(row[5]))),  # Район
                         ft.DataCell(ft.Text(str(row[6]))),  # Город
+                        ft.DataCell(ft.Text(str(row[7] or ''))),  # Группа
                         ft.DataCell(
                             ft.Row([
                                 ft.IconButton(
@@ -347,7 +424,7 @@ def students_screen(page):
                 label="Поиск",
                 hint_text="Введите имя или ИИН",
                 on_change=on_search_change,
-                width=400,
+                width=200,
                 border_radius=ft.border_radius.all(8),
             ),
             ft.ElevatedButton(
@@ -357,11 +434,11 @@ def students_screen(page):
                 color=ft.Colors.WHITE,
             ),
             ft.ElevatedButton(
-                "Добавить студента",
-                icon=ft.icons.ADD,
+                "Выбрать группу",
+                icon=ft.icons.SELECT_ALL,
                 bgcolor=ft.Colors.GREEN,
                 color=ft.Colors.WHITE,
-                on_click=lambda e: add_student_dialog(page),  # Открываем диалог для добавления студента
+                on_click=lambda e: select_group_course_dialog(page),
             ),
         ],
         spacing=20,
@@ -390,9 +467,7 @@ def students_screen(page):
     )
 
 def add_student_dialog(page):
-    # Функция для создания диалогового окна
     def save_student(e):
-        # Сохраняем данные студента
         student_info = {
             "full_name": fio_field.value or "",
             "date_of_birth": dob_field.value or None,
@@ -419,21 +494,27 @@ def add_student_dialog(page):
             "family_social_help": family_social_help_field.value or "",
             "expelled": expelled_field.value,
             "order_number": order_number_field.value or "",
+            "group_name": group_name_field.value or "",
+            "course_number": course_number_field.value or "",
         }
-        page.close(dialog)
 
-        # Подключаемся к базе данных и сохраняем данные
         try:
             conn = connect_to_db()
             cursor = conn.cursor()
 
             insert_query = sql.SQL("""
-                INSERT INTO students (full_name, date_of_birth, origin_school, region, district, city, address,
-                                      parent_full_name, factual_address, hobbies, nationality, citizenship,
-                                      residence_permit, document_expiry_date, social_status, orphan_status,
-                                      disability_status, family_support_info, previous_residence, current_residence,
-                                      housing_type, parents_job_education, family_social_help, expelled, order_number)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO students (
+                    full_name, date_of_birth, origin_school, region, district, 
+                    city, address, parent_full_name, factual_address, hobbies, 
+                    nationality, citizenship, residence_permit, 
+                    document_expiry_date, social_status, orphan_status,
+                    disability_status, family_support_info, previous_residence, 
+                    current_residence, housing_type, parents_job_education, 
+                    family_social_help, expelled, order_number, 
+                    group_name, course_number
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
+                          %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
+                          %s, %s, %s, %s, %s, %s, %s)
             """)
 
             cursor.execute(insert_query, (
@@ -461,26 +542,37 @@ def add_student_dialog(page):
                 student_info["parents_job_education"],
                 student_info["family_social_help"],
                 student_info["expelled"],
-                student_info["order_number"]
+                student_info["order_number"],
+                student_info["group_name"],
+                student_info["course_number"]
             ))
 
-            conn.commit()  # Подтверждаем изменения
+            conn.commit()
             cursor.close()
             conn.close()
             
-            # Уведомление об успешном сохранении
             page.snack_bar = ft.SnackBar(content=ft.Text("Студент успешно добавлен!"))
             page.snack_bar.open = True
             page.update()
             
-            dialog.close()  # Закрываем диалог после сохранения
-            update_students_list(page)  # Обновляем список студентов
+            dialog.close()
+            update_students_list(page)
         except Exception as e:
-            # Более подробное уведомление об ошибке
             page.snack_bar = ft.SnackBar(content=ft.Text(f"Ошибка при сохранении: {str(e)}"))
             page.snack_bar.open = True
             page.update()
             print(f"Ошибка при сохранении данных: {e}")
+
+    # Для курса сделаем выпадающий список с фиксированными значениями
+    course_number_field = ft.Dropdown(
+        label="Курс",
+        width=300,
+        options=[
+            ft.dropdown.Option("1"),
+            ft.dropdown.Option("2"),
+            ft.dropdown.Option("3")
+        ]
+    )
 
     # Поля для ввода данных студента (как в вашем оригинальном коде)
     fio_field = ft.TextField(label="ФИО")
@@ -508,6 +600,8 @@ def add_student_dialog(page):
     family_social_help_field = ft.TextField(label="Адресная соцпомощь")
     expelled_field = ft.Checkbox(label="Статус отчисления")
     order_number_field = ft.TextField(label="Номер приказа")
+    group_name_field = ft.TextField(label="Группа")
+    course_number_field = ft.TextField(label="Курс")
     # Добавьте остальные поля как в вашем оригинальном коде
 
     dialog = ft.AlertDialog(
@@ -540,6 +634,8 @@ def add_student_dialog(page):
                     family_social_help_field,
                     expelled_field,
                     order_number_field,
+                    group_name_field,
+                    course_number_field
                 ],
                 spacing=10,
                 expand=True,
@@ -559,17 +655,30 @@ def add_student_dialog(page):
 
 # Экспортируем функцию students_screen для использования в других модулях
 
-def update_students_list(page):  # Добавляем page как параметр
+def update_students_list(page, selected_group=None, selected_course=None):
     global students_table, content
     content.controls.clear()
     try:
         conn = connect_to_db()
         cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT id, full_name, date_of_birth, origin_school, region, district, city
+        # Динамическое формирование запроса с возможностью фильтрации
+        query = """
+            SELECT id, full_name, date_of_birth, origin_school, region, district, city, group_name, course_number
             FROM students
-        """)
+            WHERE 1=1
+        """
+        params = []
+
+        if selected_group:
+            query += " AND group_name = %s"
+            params.append(selected_group)
+
+        if selected_course:
+            query += " AND course_number = %s"
+            params.append(selected_course)
+
+        cursor.execute(query, params)
         rows = cursor.fetchall()
 
         students_table = ft.DataTable(
@@ -580,6 +689,7 @@ def update_students_list(page):  # Добавляем page как парамет
                 ft.DataColumn(ft.Text("Область")),
                 ft.DataColumn(ft.Text("Район")),
                 ft.DataColumn(ft.Text("Город")),
+                ft.DataColumn(ft.Text("Группа")),
                 ft.DataColumn(ft.Text("Действия")),
             ],
             rows=[
@@ -591,6 +701,7 @@ def update_students_list(page):  # Добавляем page как парамет
                         ft.DataCell(ft.Text(str(row[4]))),  # Область
                         ft.DataCell(ft.Text(str(row[5]))),  # Район
                         ft.DataCell(ft.Text(str(row[6]))),  # Город
+                        ft.DataCell(ft.Text(str(row[7] or ''))),  # Группа
                         ft.DataCell(
                             ft.Row([
                                 ft.IconButton(
@@ -622,9 +733,13 @@ def update_students_list(page):  # Добавляем page как парамет
     except Exception as e:
         print(f"Ошибка при получении данных: {e}")
         content.controls.append(ft.Text(f"Ошибка загрузки данных: {e}", color=ft.colors.RED))
-# Остальной код остается прежним
 
 def students_screen(page):
+    def reset_filter(page):
+        update_students_list(page)  # Загружаем список студентов без фильтров
+        page.snack_bar = ft.SnackBar(content=ft.Text("Фильтры сброшены."))
+        page.snack_bar.open = True
+        page.update()
     def on_search_change(e):
         print(f"Поиск: {e.control.value}")
 
@@ -634,14 +749,8 @@ def students_screen(page):
                 label="Поиск",
                 hint_text="Введите имя или ИИН",
                 on_change=on_search_change,
-                width=400,
+                width=600,
                 border_radius=ft.border_radius.all(8),
-            ),
-            ft.ElevatedButton(
-                "Прикрепить документ",
-                icon=ft.icons.ATTACH_FILE,
-                bgcolor=ft.Colors.BLUE,
-                color=ft.Colors.WHITE,
             ),
             ft.ElevatedButton(
                 "Добавить студента",
@@ -650,15 +759,24 @@ def students_screen(page):
                 color=ft.Colors.WHITE,
                 on_click=lambda e: add_student_dialog(page),  # Открываем диалог для добавления студента
             ),
+            ft.ElevatedButton(
+                "Выбрать группу",
+                icon=ft.icons.SELECT_ALL,
+                bgcolor=ft.Colors.GREEN,
+                color=ft.Colors.WHITE,
+                on_click=lambda e: select_group_course_dialog(page),
+            ),
+            ft.ElevatedButton(
+                "Сбросить фильтр",
+                icon=ft.icons.CLEAR,
+                bgcolor=ft.Colors.RED,
+                color=ft.Colors.WHITE,
+                on_click=lambda e: reset_filter(page)
+            ),
         ],
         spacing=20,
         alignment=ft.MainAxisAlignment.START,
     )
-
-            # content=ft.Container()
-            #         content=ft.ListView()
-            #             controls=[]
-    
 
     global content
     content = ft.Column(

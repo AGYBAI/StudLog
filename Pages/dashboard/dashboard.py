@@ -7,6 +7,11 @@ from Pages.dashboard.analytics_screen import analytics_screen
 from Pages.dashboard.students_screen import students_screen
 from Pages.utils import language_selector
 
+content = ft.Column(
+        controls=[],
+        alignment=ft.MainAxisAlignment.START,
+        expand=True,
+    )
 login_view = ft.View(
         route="/auth_screen",
         controls=[]  # Создаем пустую страницу
@@ -20,6 +25,7 @@ def dashboard_screen(page: ft.Page):
     page.window.maximized = True
     page.padding = ft.padding.all(0)
     page.bgcolor = ft.Colors.WHITE
+
 
     def change_screen(e):
         selected_index = rail.selected_index
@@ -87,11 +93,7 @@ def dashboard_screen(page: ft.Page):
         on_change=change_screen,
     )
 
-    content = ft.Column(
-        controls=[],
-        alignment=ft.MainAxisAlignment.START,
-        expand=True,
-    )
+    
 
     page.views[-1].controls.append(
         ft.Row(

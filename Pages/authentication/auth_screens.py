@@ -147,7 +147,7 @@ def auth_screen(page: ft.Page):
         else:
             login_password_field.helper_text = "Неверный пароль"
             login_password_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
-
+    
     login_email_field = ft.TextField(
         label=t("email"),  # Перевод метки
         hint_text="example@gmail.com",
@@ -190,12 +190,17 @@ def auth_screen(page: ft.Page):
                             bgcolor=ft.Colors.WHITE,
                             border_radius=10,
                             width=550,
-                            height=420,
+                            height=650,
                             padding=ft.padding.all(10),
                             content=ft.Column(
                                 controls=[
+                                    ft.Image(
+                                            src="/Users/gibatolla/Documents/Практика/StudLog/assets/logo.png",
+                                                width=200,
+                                                height=200,
+                                            ),
                                     ft.Text(value=t("login"), weight="bold", size=20, color=ft.Colors.BLACK),
-                                    ft.Divider(height=1, color=ft.Colors.with_opacity(0.25, ft.Colors.GREY),
+                                    ft.Divider(height=2, color=ft.Colors.with_opacity(0.25, ft.Colors.GREY),
                                                thickness=1),
                                     ft.Column(
                                         controls=[
@@ -262,4 +267,4 @@ def main(page: ft.Page):
         page.go("/auth_screen")
 
 if __name__ == '__main__':
-    ft.app(target=main)
+    ft.app(target=main, view=ft.AppView.WEB_BROWSER)
