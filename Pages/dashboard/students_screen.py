@@ -365,7 +365,6 @@ def update_students_list(page):
                 ft.DataColumn(ft.Text("ФИО")),
                 ft.DataColumn(ft.Text("Дата рождения")),
                 ft.DataColumn(ft.Text("Школа")),
-                ft.DataColumn(ft.Text("Область")),
                 ft.DataColumn(ft.Text("Район")),
                 ft.DataColumn(ft.Text("Город")),
                 ft.DataColumn(ft.Text("Группа")),
@@ -378,7 +377,6 @@ def update_students_list(page):
                         ft.DataCell(ft.Text(str(row[1]))),  # ФИО
                         ft.DataCell(ft.Text(str(row[2]))),  # Дата рождения
                         ft.DataCell(ft.Text(str(row[3]))),  # Школа
-                        ft.DataCell(ft.Text(str(row[4]))),  # Область
                         ft.DataCell(ft.Text(str(row[5]))),  # Район
                         ft.DataCell(ft.Text(str(row[6]))),  # Город
                         ft.DataCell(ft.Text(str(row[7] or ''))),  # Группа
@@ -686,7 +684,6 @@ def update_students_list(page, selected_group=None, selected_course=None):
                 ft.DataColumn(ft.Text("ФИО")),
                 ft.DataColumn(ft.Text("Дата рождения")),
                 ft.DataColumn(ft.Text("Школа")),
-                ft.DataColumn(ft.Text("Область")),
                 ft.DataColumn(ft.Text("Район")),
                 ft.DataColumn(ft.Text("Город")),
                 ft.DataColumn(ft.Text("Группа")),
@@ -698,7 +695,6 @@ def update_students_list(page, selected_group=None, selected_course=None):
                         ft.DataCell(ft.Text(str(row[1]))),  # ФИО
                         ft.DataCell(ft.Text(str(row[2]))),  # Дата рождения
                         ft.DataCell(ft.Text(str(row[3]))),  # Школа
-                        ft.DataCell(ft.Text(str(row[4]))),  # Область
                         ft.DataCell(ft.Text(str(row[5]))),  # Район
                         ft.DataCell(ft.Text(str(row[6]))),  # Город
                         ft.DataCell(ft.Text(str(row[7] or ''))),  # Группа
@@ -749,7 +745,7 @@ def students_screen(page):
                 label="Поиск",
                 hint_text="Введите имя или ИИН",
                 on_change=on_search_change,
-                width=600,
+                width=400,
                 border_radius=ft.border_radius.all(8),
             ),
             ft.ElevatedButton(
