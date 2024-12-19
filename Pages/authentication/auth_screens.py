@@ -76,7 +76,7 @@ def auth_screen(page: ft.Page):
     def on_login_password_change(e):
         password = e.control.value
         # Проверка длины
-        if len(password) <= 8:
+        if len(password) < 8:
             login_password_field.error_text = "Пароль должен быть не менее 8 символов"
             login_password_field.border_color = "red"
         # Проверка на наличие заглавных букв
@@ -103,15 +103,15 @@ def auth_screen(page: ft.Page):
         login_password_field.update()
 
     def on_login(e: ft.ControlEvent):
-        # Проверка формата email и длины пароля
-        if not validate_email(login_email_field.value) or len(login_password_field.value) <= 8:
+        # Проверка формата email
+        if not validate_email(login_email_field.value):
             page.snack_bar = ft.SnackBar(
                 ft.Text("Пожалуйста, исправьте ошибки", color="red"), open=True
             )
             page.update()
             return
 
-        # Проверка на заполненность полей
+        # Проверка заполненности полей
         fields = {
             login_email_field: "Поле не может быть пустым!",
             login_password_field: "Поле не может быть пустым!",
@@ -132,22 +132,38 @@ def auth_screen(page: ft.Page):
 
         # Проверка данных пользователя в базе
         try:
+            # Запрос пароля из базы
             cur.execute(
-                """SELECT password FROM users WHERE email = %s""",
-                (login_email_field.value,),
+                "SELECT password FROM users WHERE email = %s",
+                (login_email_field.value,)
             )
             user = cur.fetchone()
 
             if user:
-                db_password = user[0]
-                if login_password_field.value == db_password:
+                db_password = user[0]  # Хэшированный пароль из базы
+
+                # Проверка пароля с помощью crypt
+                cur.execute(
+                    "SELECT crypt(%s, %s) = %s",
+                    (login_password_field.value, db_password, db_password)
+                )
+                is_valid = cur.fetchone()[0]
+
+                if is_valid:
                     page.snack_bar = ft.SnackBar(ft.Text("Вход выполнен! ✅", color="green"), open=True)
+                    from Pages.dashboard.dashboard import dashboard_screen
+                    save_session(True, login_email_field.value)
+                    dash_view = ft.View(route="/dashboard", controls=[])
+                    page.views.append(dash_view)
+                    dashboard_screen(page)
+                    page.go("/dashboard")
                 else:
                     login_password_field.helper_text = "Неверный пароль"
                     login_password_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
             else:
                 login_email_field.helper_text = "Пользователь с таким email не найден"
                 login_email_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+
         except Exception as error:
             page.snack_bar = ft.SnackBar(
                 ft.Text(f"Ошибка при входе: {error}", color="red"), open=True

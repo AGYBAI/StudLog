@@ -347,17 +347,42 @@ def delete_student(page, student_id):
     delete_dialog.open = True
     page.update()
 
-def update_students_list(page):
+def update_students_list(page, search_query=None, selected_group=None, selected_course=None):
     global students_table, content
     content.controls.clear()
     try:
         conn = connect_to_db()
         cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT id, full_name, date_of_birth, origin_school, region, district, city, group_name
+        query = """
+            SELECT DISTINCT id, full_name, date_of_birth, origin_school, region, district, city, group_name, course_number
             FROM students
-        """)
+            WHERE 1=1
+        """
+        params = []
+
+        if search_query:
+            query += """ 
+                AND (
+                    LOWER(full_name) LIKE LOWER(%s) 
+                    OR LOWER(origin_school) LIKE LOWER(%s)
+                    OR LOWER(city) LIKE LOWER(%s)
+                    OR LOWER(district) LIKE LOWER(%s)
+                    OR LOWER(group_name) LIKE LOWER(%s)
+                )
+            """
+            search_param = f"%{search_query}%"
+            params.extend([search_param] * 5)
+
+        if selected_group:
+            query += " AND group_name = %s"
+            params.append(selected_group)
+
+        if selected_course:
+            query += " AND course_number = %s"
+            params.append(selected_course)
+
+        cursor.execute(query, params)
         rows = cursor.fetchall()
 
         students_table = ft.DataTable(
@@ -369,7 +394,6 @@ def update_students_list(page):
                 ft.DataColumn(ft.Text("Город")),
                 ft.DataColumn(ft.Text("Группа")),
                 ft.DataColumn(ft.Text("Действия")),
-
             ],
             rows=[
                 ft.DataRow(
@@ -385,17 +409,20 @@ def update_students_list(page):
                                 ft.IconButton(
                                     icon=ft.icons.VISIBILITY, 
                                     tooltip="Просмотр",
-                                    on_click=lambda e, student_id=row[0]: view_student_details(page, student_id)
+                                    icon_color=ft.Colors.BLUE_600,
+                                    on_click=lambda e, sid=row[0]: view_student_details(page, sid)
                                 ),
                                 ft.IconButton(
                                     icon=ft.icons.EDIT, 
                                     tooltip="Редактировать",
-                                    on_click=lambda e, student_id=row[0]: edit_student_dialog(page, student_id)
+                                    icon_color=ft.Colors.BLUE_600,
+                                    on_click=lambda e, sid=row[0]: edit_student_dialog(page, sid)
                                 ),
                                 ft.IconButton(
                                     icon=ft.icons.DELETE, 
                                     tooltip="Удалить",
-                                    on_click=lambda e, student_id=row[0]: delete_student(page, student_id)
+                                    icon_color=ft.Colors.BLUE_600,
+                                    on_click=lambda e, sid=row[0]: delete_student(page, sid)
                                 )
                             ])
                         )
@@ -404,7 +431,23 @@ def update_students_list(page):
             ]
         )
 
-        content.controls.append(students_table)
+        # Wrap the table in a Container with scrolling
+        table_container = ft.Container(
+            content=students_table,
+            border=ft.border.all(1, ft.colors.GREY_300),
+            border_radius=8,
+            padding=10,
+            expand=True,
+        )
+
+        scrollable_content = ft.Column(
+            [table_container],
+            scroll=ft.ScrollMode.AUTO,
+            expand=True,
+            spacing=0,
+        )
+
+        content.controls.append(scrollable_content)
         
         cursor.close()
         conn.close()
@@ -413,30 +456,54 @@ def update_students_list(page):
         content.controls.append(ft.Text(f"Ошибка загрузки данных: {e}", color=ft.colors.RED))
 
 def students_screen(page):
-    def on_search_change(e):
-        print(f"Поиск: {e.control.value}")
+    search_field = ft.TextField(
+        label="Поиск",
+        hint_text="Поиск по ФИО, школе, городу, району или группе",
+        width=400,
+        border_radius=ft.border_radius.all(8),
+    )
+
+    def apply_search(e):
+        update_students_list(page, search_query=search_field.value)
+        page.update()
+
+    def reset_filter(e):
+        search_field.value = ""
+        update_students_list(page)
+        page.snack_bar = ft.SnackBar(content=ft.Text("Фильтры сброшены."))
+        page.snack_bar.open = True
+        page.update()
 
     search_row = ft.Row(
         controls=[
-            ft.TextField(
-                label="Поиск",
-                hint_text="Введите имя или ИИН",
-                on_change=on_search_change,
-                width=200,
-                border_radius=ft.border_radius.all(8),
+            search_field,
+            ft.ElevatedButton(
+                "Поиск",
+                icon=ft.icons.SEARCH,
+                bgcolor=ft.Colors.BLUE_600,
+                color=ft.Colors.WHITE,
+                on_click=apply_search,
             ),
             ft.ElevatedButton(
-                "Прикрепить документ",
-                icon=ft.icons.ATTACH_FILE,
-                bgcolor=ft.Colors.BLUE,
+                "Добавить студента",
+                icon=ft.icons.ADD,
+                bgcolor=ft.Colors.BLUE_600,
                 color=ft.Colors.WHITE,
+                on_click=lambda e: add_student_dialog(page),
             ),
             ft.ElevatedButton(
                 "Выбрать группу",
                 icon=ft.icons.SELECT_ALL,
-                bgcolor=ft.Colors.GREEN,
+                bgcolor=ft.Colors.BLUE_600,
                 color=ft.Colors.WHITE,
                 on_click=lambda e: select_group_course_dialog(page),
+            ),
+            ft.ElevatedButton(
+                "Сбросить фильтр",
+                icon=ft.icons.CLEAR,
+                bgcolor=ft.Colors.RED,
+                color=ft.Colors.WHITE,
+                on_click=reset_filter,
             ),
         ],
         spacing=20,
@@ -450,14 +517,17 @@ def students_screen(page):
         expand=True,
     )
 
-    update_students_list(page)  # Передаем page в функцию обновления
+    update_students_list(page) # Обновляем список студентов при загрузке
 
     return ft.Column(
         controls=[
             search_row,
             ft.Divider(thickness=1, color=ft.Colors.BLACK),
             ft.Text("Данные студентов:", size=20, weight=ft.FontWeight.BOLD),
-            content,
+            ft.Container(
+                content=content,
+                expand=True,
+            ),
         ],
         spacing=20,
         alignment=ft.MainAxisAlignment.START,
@@ -652,148 +722,3 @@ def add_student_dialog(page):
     page.update()
 
 # Экспортируем функцию students_screen для использования в других модулях
-
-def update_students_list(page, selected_group=None, selected_course=None):
-    global students_table, content
-    content.controls.clear()
-    try:
-        conn = connect_to_db()
-        cursor = conn.cursor()
-
-        # Динамическое формирование запроса с возможностью фильтрации
-        query = """
-            SELECT id, full_name, date_of_birth, origin_school, region, district, city, group_name, course_number
-            FROM students
-            WHERE 1=1
-        """
-        params = []
-
-        if selected_group:
-            query += " AND group_name = %s"
-            params.append(selected_group)
-
-        if selected_course:
-            query += " AND course_number = %s"
-            params.append(selected_course)
-
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
-
-        students_table = ft.DataTable(
-            columns=[
-                ft.DataColumn(ft.Text("ФИО")),
-                ft.DataColumn(ft.Text("Дата рождения")),
-                ft.DataColumn(ft.Text("Школа")),
-                ft.DataColumn(ft.Text("Район")),
-                ft.DataColumn(ft.Text("Город")),
-                ft.DataColumn(ft.Text("Группа")),
-                ft.DataColumn(ft.Text("Действия")),
-            ],
-            rows=[
-                ft.DataRow(
-                    cells=[
-                        ft.DataCell(ft.Text(str(row[1]))),  # ФИО
-                        ft.DataCell(ft.Text(str(row[2]))),  # Дата рождения
-                        ft.DataCell(ft.Text(str(row[3]))),  # Школа
-                        ft.DataCell(ft.Text(str(row[5]))),  # Район
-                        ft.DataCell(ft.Text(str(row[6]))),  # Город
-                        ft.DataCell(ft.Text(str(row[7] or ''))),  # Группа
-                        ft.DataCell(
-                            ft.Row([
-                                ft.IconButton(
-                                    icon=ft.icons.VISIBILITY, 
-                                    tooltip="Просмотр",
-                                    icon_color=ft.Colors.BLUE_600,
-                                    on_click=lambda e, sid=row[0]: view_student_details(page, sid)
-                                ),
-                                ft.IconButton(
-                                    icon=ft.icons.EDIT, 
-                                    tooltip="Редактировать",
-                                    icon_color=ft.Colors.BLUE_600,
-                                    on_click=lambda e, sid=row[0]: edit_student_dialog(page, sid)
-                                ),
-                                ft.IconButton(
-                                    icon=ft.icons.DELETE, 
-                                    tooltip="Удалить",
-                                    icon_color=ft.Colors.BLUE_600,
-                                    on_click=lambda e, sid=row[0]: delete_student(page, sid)
-                                )
-                            ])
-                        )
-                    ]
-                ) for row in rows
-            ]
-        )
-
-        content.controls.append(students_table)
-        
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        print(f"Ошибка при получении данных: {e}")
-        content.controls.append(ft.Text(f"Ошибка загрузки данных: {e}", color=ft.colors.RED))
-
-def students_screen(page):
-    def reset_filter(page):
-        update_students_list(page)  # Загружаем список студентов без фильтров
-        page.snack_bar = ft.SnackBar(content=ft.Text("Фильтры сброшены."))
-        page.snack_bar.open = True
-        page.update()
-    def on_search_change(e):
-        print(f"Поиск: {e.control.value}")
-
-    search_row = ft.Row(
-        controls=[
-            ft.TextField(
-                label="Поиск",
-                hint_text="Введите имя или ИИН",
-                on_change=on_search_change,
-                width=400,
-                border_radius=ft.border_radius.all(8),
-            ),
-            ft.ElevatedButton(
-                "Добавить студента",
-                icon=ft.icons.ADD,
-                bgcolor=ft.Colors.BLUE_600,
-                color=ft.Colors.WHITE,
-                on_click=lambda e: add_student_dialog(page),  # Открываем диалог для добавления студента
-            ),
-            ft.ElevatedButton(
-                "Выбрать группу",
-                icon=ft.icons.SELECT_ALL,
-                bgcolor=ft.Colors.BLUE_600,
-                color=ft.Colors.WHITE,
-                on_click=lambda e: select_group_course_dialog(page),
-            ),
-            ft.ElevatedButton(
-                "Сбросить фильтр",
-                icon=ft.icons.CLEAR,
-                bgcolor=ft.Colors.RED,
-                color=ft.Colors.WHITE,
-                on_click=lambda e: reset_filter(page)
-            ),
-        ],
-        spacing=20,
-        alignment=ft.MainAxisAlignment.START,
-    )
-
-    global content
-    content = ft.Column(
-        controls=[],
-        alignment=ft.MainAxisAlignment.START,
-        expand=True,
-    )
-
-    update_students_list(page) # Обновляем список студентов при загрузке
-
-    return ft.Column(
-        controls=[
-            search_row,
-            ft.Divider(thickness=1, color=ft.Colors.BLACK),
-            ft.Text("Данные студентов:", size=20, weight=ft.FontWeight.BOLD),
-            content,
-        ],
-        spacing=20,
-        alignment=ft.MainAxisAlignment.START,
-        expand=True,
-    )
