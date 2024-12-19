@@ -74,17 +74,37 @@ def auth_screen(page: ft.Page):
         field.update()
     
     def on_login_password_change(e):
-        if len(e.control.value) >= 8:
-            login_password_field.error_text = None
-            login_password_field.border_color = "green"
-        else:
+        password = e.control.value
+        # Проверка длины
+        if len(password) <= 8:
             login_password_field.error_text = "Пароль должен быть не менее 8 символов"
             login_password_field.border_color = "red"
+        # Проверка на наличие заглавных букв
+        elif not any(char.isupper() for char in password):
+            login_password_field.error_text = "Пароль должен содержать хотя бы одну заглавную букву"
+            login_password_field.border_color = "red"
+        # Проверка на наличие строчных букв
+        elif not any(char.islower() for char in password):
+            login_password_field.error_text = "Пароль должен содержать хотя бы одну строчную букву"
+            login_password_field.border_color = "red"
+        # Проверка на наличие цифр
+        elif not any(char.isdigit() for char in password):
+            login_password_field.error_text = "Пароль должен содержать хотя бы одну цифру"
+            login_password_field.border_color = "red"
+        # Проверка на наличие специальных символов
+        elif not any(char in "!@#$%^&*()~" for char in password):
+            login_password_field.error_text = "Пароль должен содержать хотя бы один специальный символ (!,@,#,$,%,^,&,*,(,),~)"
+            login_password_field.border_color = "red"
+        # Если все условия выполнены
+        else:
+            login_password_field.error_text = None
+            login_password_field.border_color = "green"
+        # Обновление поля
         login_password_field.update()
 
     def on_login(e: ft.ControlEvent):
         # Проверка формата email и длины пароля
-        if not validate_email(login_email_field.value) or len(login_password_field.value) < 6:
+        if not validate_email(login_email_field.value) or len(login_password_field.value) <= 8:
             page.snack_bar = ft.SnackBar(
                 ft.Text("Пожалуйста, исправьте ошибки", color="red"), open=True
             )

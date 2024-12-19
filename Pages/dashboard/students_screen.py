@@ -115,8 +115,8 @@ def view_student_details(page, student_id):
                     ft.Text(f"Адресная социальная помощь: {student[23]}"),
                     ft.Text(f"Статус отчисления: {'Да' if student[24] else 'Нет'}"),
                     ft.Text(f"Номер приказа: {student[25]}"),
-                    ft.Text(f"Группа: {student[26] if student[26] else 'Не указано'}"),
-                    ft.Text(f"Курс: {student[27] if student[27] else 'Не указан'}"),
+                    ft.Text(f"Группа: {student[27] or 'Не указано'}"),
+                    ft.Text(f"Курс: {student[28] or 'Не указан'}"),
                     ],
                     spacing=10,
                     expand=True,
@@ -173,8 +173,8 @@ def edit_student_dialog(page, student_id):
             family_social_help_field = ft.TextField(label="Адресная соцпомощь", value=student[23])
             expelled_field = ft.Checkbox(label="Статус отчисления", value=student[24])
             order_number_field = ft.TextField(label="Номер приказа", value=student[25])
-            group_name_field = ft.TextField(label="Группа")
-            course_number_field = ft.TextField(label="Курс")
+            group_name_field = ft.TextField(label="Группа", value=student[27] if student[27] else "")
+            course_number_field = ft.TextField(label="Курс", value=str(student[28]) if student[28] else "")
 
             def save_edited_student(e):
                 try:
@@ -182,33 +182,33 @@ def edit_student_dialog(page, student_id):
                     cursor = conn.cursor()
                     update_query = sql.SQL("""
                     UPDATE students SET
-                    full_name = %s, 
-                    date_of_birth = %s, 
-                    origin_school = %s,
-                    region = %s, 
-                    district = %s, 
-                    city = %s,
-                    address = %s,
-                    parent_full_name = %s,
-                    factual_address = %s,
-                    hobbies = %s,
-                    nationality = %s,
-                    citizenship = %s,
-                    residence_permit = %s,
-                    document_expiry_date = %s,
-                    social_status = %s,
-                    orphan_status = %s,
-                    disability_status = %s,
-                    family_support_info = %s,
-                    previous_residence = %s,
-                    current_residence = %s,
-                    housing_type = %s,
-                    parents_job_education = %s,
-                    family_social_help = %s,
-                    expelled = %s,
-                    order_number = %s,
-                    group_name = %s,
-                    course_mumber = %s,
+                        full_name = %s, 
+                        date_of_birth = %s, 
+                        origin_school = %s,
+                        region = %s, 
+                        district = %s, 
+                        city = %s,
+                        address = %s,
+                        parent_full_name = %s,
+                        factual_address = %s,
+                        hobbies = %s,
+                        nationality = %s,
+                        citizenship = %s,
+                        residence_permit = %s,
+                        document_expiry_date = %s,
+                        social_status = %s,
+                        orphan_status = %s,
+                        disability_status = %s,
+                        family_support_info = %s,
+                        previous_residence = %s,
+                        current_residence = %s,
+                        housing_type = %s,
+                        parents_job_education = %s,
+                        family_social_help = %s,
+                        expelled = %s,
+                        order_number = %s,
+                        group_name = %s,
+                        course_number = %s
                     WHERE id = %s
                     """)
                     cursor.execute(update_query, (
@@ -511,8 +511,8 @@ def add_student_dialog(page):
                     family_social_help, expelled, order_number, 
                     group_name, course_number
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
-                          %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
-                          %s, %s, %s, %s, %s, %s, %s)
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
+                        %s, %s, %s, %s, %s, %s, %s)
             """)
 
             cursor.execute(insert_query, (
@@ -703,16 +703,19 @@ def update_students_list(page, selected_group=None, selected_course=None):
                                 ft.IconButton(
                                     icon=ft.icons.VISIBILITY, 
                                     tooltip="Просмотр",
+                                    icon_color=ft.Colors.BLUE_600,
                                     on_click=lambda e, sid=row[0]: view_student_details(page, sid)
                                 ),
                                 ft.IconButton(
                                     icon=ft.icons.EDIT, 
                                     tooltip="Редактировать",
+                                    icon_color=ft.Colors.BLUE_600,
                                     on_click=lambda e, sid=row[0]: edit_student_dialog(page, sid)
                                 ),
                                 ft.IconButton(
                                     icon=ft.icons.DELETE, 
                                     tooltip="Удалить",
+                                    icon_color=ft.Colors.BLUE_600,
                                     on_click=lambda e, sid=row[0]: delete_student(page, sid)
                                 )
                             ])
@@ -751,14 +754,14 @@ def students_screen(page):
             ft.ElevatedButton(
                 "Добавить студента",
                 icon=ft.icons.ADD,
-                bgcolor=ft.Colors.GREEN,
+                bgcolor=ft.Colors.BLUE_600,
                 color=ft.Colors.WHITE,
                 on_click=lambda e: add_student_dialog(page),  # Открываем диалог для добавления студента
             ),
             ft.ElevatedButton(
                 "Выбрать группу",
                 icon=ft.icons.SELECT_ALL,
-                bgcolor=ft.Colors.GREEN,
+                bgcolor=ft.Colors.BLUE_600,
                 color=ft.Colors.WHITE,
                 on_click=lambda e: select_group_course_dialog(page),
             ),
