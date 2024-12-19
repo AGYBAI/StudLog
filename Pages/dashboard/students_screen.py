@@ -1,6 +1,7 @@
 import flet as ft
 import psycopg2
 from psycopg2 import sql
+from Pages.utils import t
 
 def connect_to_db():
     return psycopg2.connect(
@@ -42,21 +43,21 @@ def select_group_course_dialog(page):
         page.update()
 
     group_dropdown = ft.Dropdown(
-        label="Выберите группу",
+        label=t("select_group"),
         options=[ft.dropdown.Option(group) for group in groups],
         width=300,
         on_change=lambda e: on_group_change(page, e)  # Передаем page явно
     )
     
     course_dropdown = ft.Dropdown(
-        label="Выберите курс", 
+        label=t("select_course"), 
         options=[ft.dropdown.Option(str(course)) for course in courses],
         width=300,
         on_change=lambda e: on_course_change(page, e)  # Передаем page явно
     )
 
     dialog = ft.AlertDialog(
-        title=ft.Text("Фильтр групп и курсов"),
+        title=ft.Text(t("filters")),
         content=ft.Column(
             controls=[
                 group_dropdown,
@@ -66,8 +67,8 @@ def select_group_course_dialog(page):
             width=350
         ),
         actions=[
-            ft.TextButton("Применить", on_click=lambda e: page.close(dialog)),
-            ft.TextButton("Отмена", on_click=lambda e: page.close(dialog))
+            ft.TextButton(t("apply"), on_click=lambda e: page.close(dialog)),
+            ft.TextButton(t("cancel"), on_click=lambda e: page.close(dialog))
         ]
     )
 
@@ -86,37 +87,37 @@ def view_student_details(page, student_id):
         if student:
             # Создаем диалоговое окно с подробной информацией о студенте
             details_dialog = ft.AlertDialog(
-                title=ft.Text(f"Детали студента: {student[1]}"),
+                title=ft.Text(f"{t('student_details')}: {student[1]}"),
                 content=ft.Container(
                     content=ft.ListView(
                         controls=[
-                    ft.Text(f"ФИО: {student[1]}"),
-                    ft.Text(f"Дата рождения: {student[2]}"),
-                    ft.Text(f"Школа: {student[3]}"),
-                    ft.Text(f"Регион: {student[4]}"),
-                    ft.Text(f"Район: {student[5]}"),
-                    ft.Text(f"Город: {student[6]}"),
-                    ft.Text(f"Адрес проживания: {student[7]}"),
-                    ft.Text(f"ФИО родителей: {student[8]}"),
-                    ft.Text(f"Фактический адрес: {student[9]}"),
-                    ft.Text(f"Хобби: {student[10]}"),
-                    ft.Text(f"Национальность: {student[11]}"),
-                    ft.Text(f"Гражданство: {student[12]}"),
-                    ft.Text(f"РВП или ВНЖ: {student[13]}"),
-                    ft.Text(f"Срок действия документа: {student[14]}"),
-                    ft.Text(f"Социальный статус: {student[15]}"),
-                    ft.Text(f"Статус сироты: {'Да' if student[16] else 'Нет'}"),
-                    ft.Text(f"Статус инвалида: {'Да' if student[17] else 'Нет'}"),
-                    ft.Text(f"Информация о поддержке семьи: {student[18]}"),
-                    ft.Text(f"Предыдущее место жительства: {student[19]}"),
-                    ft.Text(f"Текущее место жительства: {student[20]}"),
-                    ft.Text(f"Тип жилья: {student[21]}"),
-                    ft.Text(f"Образование и должность родителей: {student[22]}"),
-                    ft.Text(f"Адресная социальная помощь: {student[23]}"),
-                    ft.Text(f"Статус отчисления: {'Да' if student[24] else 'Нет'}"),
-                    ft.Text(f"Номер приказа: {student[25]}"),
-                    ft.Text(f"Группа: {student[27] or 'Не указано'}"),
-                    ft.Text(f"Курс: {student[28] or 'Не указан'}"),
+                    ft.Text(f"{t('full_name')}: {student[1]}"),
+                    ft.Text(f"{t('birth_date')}: {student[2]}"),
+                    ft.Text(f"{t('school')}: {student[3]}"),
+                    ft.Text(f"{t('region')}: {student[4]}"),
+                    ft.Text(f"{t('district')}: {student[5]}"),
+                    ft.Text(f"{t('city')}: {student[6]}"),
+                    ft.Text(f"{t('address')}: {student[7]}"),
+                    ft.Text(f"{t('parents_name')}: {student[8]}"),
+                    ft.Text(f"{t('factual_address')}: {student[9]}"),
+                    ft.Text(f"{t('hobbies')}: {student[10]}"),
+                    ft.Text(f"{t('nationality')}: {student[11]}"),
+                    ft.Text(f"{t('citizenship')}: {student[12]}"),
+                    ft.Text(f"{t('residence_permit')}: {student[13]}"),
+                    ft.Text(f"{t('document_expiry')}: {student[14]}"),
+                    ft.Text(f"{t('social_status')}: {student[15]}"),
+                    ft.Text(f"{t('orphan_status')}: {t('yes') if student[16] else t('no')}"),
+                    ft.Text(f"{t('disability_status')}: {t('yes') if student[17] else t('no')}"),
+                    ft.Text(f"{t('family_support')}: {student[18]}"),
+                    ft.Text(f"{t('previous_residence')}: {student[19]}"),
+                    ft.Text(f"{t('current_residence')}: {student[20]}"),
+                    ft.Text(f"{t('housing_type')}: {student[21]}"),
+                    ft.Text(f"{t('parents_education')}: {student[22]}"),
+                    ft.Text(f"{t('social_help')}: {student[23]}"),
+                    ft.Text(f"{t('expelled_status')}: {t('yes') if student[24] else t('no')}"),
+                    ft.Text(f"{t('order_number')}: {student[25]}"),
+                    ft.Text(f"{t('group')}: {student[27] or t('no_data')}"),
+                    ft.Text(f"{t('course')}: {student[28] or t('no_data')}"),
                     ],
                     spacing=10,
                     expand=True,
@@ -125,7 +126,7 @@ def view_student_details(page, student_id):
                 height=500,
                 ),
                 actions=[
-                    ft.TextButton("Закрыть", on_click=lambda e: page.close(details_dialog))
+                    ft.TextButton(t("cancel"), on_click=lambda e: page.close(details_dialog))
                 ]
             )
             
@@ -148,33 +149,33 @@ def edit_student_dialog(page, student_id):
         student = cursor.fetchone()
         if student:
             # Создаем поля с текущими значениями студента
-            fio_field = ft.TextField(label="ФИО", value=student[1])
-            dob_field = ft.TextField(label="Дата рождения", value=str(student[2]) if student[2] else "")
-            school_field = ft.TextField(label="Школа", value=student[3])
-            region_field = ft.TextField(label="Область", value=student[4])
-            district_field = ft.TextField(label="Район", value=student[5])
-            city_field = ft.TextField(label="Город", value=student[6])
-            address_field = ft.TextField(label="Адрес проживания", value=student[7])
-            parents_field = ft.TextField(label="ФИО родителей", value=student[8])
-            factual_address_field = ft.TextField(label="Фактический адрес", value=student[9])
-            hobbies_field = ft.TextField(label="Хобби", value=student[10])
-            nationality_field = ft.TextField(label="Национальность", value=student[11])
-            citizenship_field = ft.TextField(label="Гражданство", value=student[12])
-            residence_permit_field = ft.TextField(label="РВП или ВНЖ", value=student[13])
-            document_expiry_date_field = ft.TextField(label="Срок действия документа", value=str(student[14]) if student[14] else "")
-            social_status_field = ft.TextField(label="Социальный статус", value=student[15])
-            orphan_status_field = ft.Checkbox(label="Статус сироты", value=student[16])
-            disability_status_field = ft.Checkbox(label="Статус инвалида", value=student[17])
-            family_support_info_field = ft.TextField(label="Информация о поддержке", value=student[18])
-            previous_residence_field = ft.TextField(label="Предыдущее место жительства", value=student[19])
-            current_residence_field = ft.TextField(label="Текущее место жительства", value=student[20])
-            housing_type_field = ft.TextField(label="Тип жилья", value=student[21])
-            parents_job_education_field = ft.TextField(label="Образование и должность родителей", value=student[22])
-            family_social_help_field = ft.TextField(label="Адресная соцпомощь", value=student[23])
-            expelled_field = ft.Checkbox(label="Статус отчисления", value=student[24])
-            order_number_field = ft.TextField(label="Номер приказа", value=student[25])
-            group_name_field = ft.TextField(label="Группа", value=student[27] if student[27] else "")
-            course_number_field = ft.TextField(label="Курс", value=str(student[28]) if student[28] else "")
+            fio_field = ft.TextField(label=t("full_name"), value=student[1])
+            dob_field = ft.TextField(label=t("birth_date"), value=str(student[2]) if student[2] else "")
+            school_field = ft.TextField(label=t("school"), value=student[3])
+            region_field = ft.TextField(label=t("region"), value=student[4])
+            district_field = ft.TextField(label=t("district"), value=student[5])
+            city_field = ft.TextField(label=t("city"), value=student[6])
+            address_field = ft.TextField(label=t("address"), value=student[7])
+            parents_field = ft.TextField(label=t("parents_name"), value=student[8])
+            factual_address_field = ft.TextField(label=t("factual_address"), value=student[9])
+            hobbies_field = ft.TextField(label=t("hobbies"), value=student[10])
+            nationality_field = ft.TextField(label=t("nationality"), value=student[11])
+            citizenship_field = ft.TextField(label=t("citizenship"), value=student[12])
+            residence_permit_field = ft.TextField(label=t("residence_permit"), value=student[13])
+            document_expiry_date_field = ft.TextField(label=t("document_expiry"), value=str(student[14]) if student[14] else "")
+            social_status_field = ft.TextField(label=t("social_status"), value=student[15])
+            orphan_status_field = ft.Checkbox(label=t("orphan_status"), value=student[16])
+            disability_status_field = ft.Checkbox(label=t("disability_status"), value=student[17])
+            family_support_info_field = ft.TextField(label=t("family_support"), value=student[18])
+            previous_residence_field = ft.TextField(label=t("previous_residence"), value=student[19])
+            current_residence_field = ft.TextField(label=t("current_residence"), value=student[20])
+            housing_type_field = ft.TextField(label=t("housing_type"), value=student[21])
+            parents_job_education_field = ft.TextField(label=t("parents_education"), value=student[22])
+            family_social_help_field = ft.TextField(label=t("social_help"), value=student[23])
+            expelled_field = ft.Checkbox(label=t("expelled_status"), value=student[24])
+            order_number_field = ft.TextField(label=t("order_number"), value=student[25])
+            group_name_field = ft.TextField(label=t("group"), value=student[27] if student[27] else "")
+            course_number_field = ft.TextField(label=t("course"), value=str(student[28]) if student[28] else "")
 
             def save_edited_student(e):
                 try:
@@ -255,7 +256,7 @@ def edit_student_dialog(page, student_id):
                     page.update()
 
             dialog = ft.AlertDialog(
-                title=ft.Text("Редактировать студента"),
+                title=ft.Text(t("edit_student")),
                 content=ft.Container(
                     content=ft.ListView(
                         controls=[
@@ -294,8 +295,8 @@ def edit_student_dialog(page, student_id):
                     height=500
                 ),
                 actions=[
-                    ft.TextButton("Сохранить", on_click=save_edited_student),
-                    ft.TextButton("Отмена", on_click=lambda e: page.close(dialog))
+                    ft.TextButton(t("save"), on_click=save_edited_student),
+                    ft.TextButton(t("cancel"), on_click=lambda e: page.close(dialog))
                 ]
             )
             
@@ -335,11 +336,11 @@ def delete_student(page, student_id):
             page.update()
     
     delete_dialog = ft.AlertDialog(
-        title=ft.Text("Подтвердите удаление"),
-        content=ft.Text("Вы уверены, что хотите удалить этого студента?"),
+        title=ft.Text(t("confirm_delete")),
+        content=ft.Text(t("delete_confirm_message")),
         actions=[
-            ft.TextButton("Да", on_click=confirm_delete),
-            ft.TextButton("Нет", on_click=lambda e: page.close(delete_dialog))
+            ft.TextButton(t("yes"), on_click=confirm_delete),
+            ft.TextButton(t("no"), on_click=lambda e: page.close(delete_dialog))
         ]
     )
     
@@ -387,13 +388,13 @@ def update_students_list(page, search_query=None, selected_group=None, selected_
 
         students_table = ft.DataTable(
             columns=[
-                ft.DataColumn(ft.Text("ФИО")),
-                ft.DataColumn(ft.Text("Дата рождения")),
-                ft.DataColumn(ft.Text("Школа")),
-                ft.DataColumn(ft.Text("Район")),
-                ft.DataColumn(ft.Text("Город")),
-                ft.DataColumn(ft.Text("Группа")),
-                ft.DataColumn(ft.Text("Действия")),
+                ft.DataColumn(ft.Text(t("full_name"))),
+                ft.DataColumn(ft.Text(t("birth_date"))),
+                ft.DataColumn(ft.Text(t("school"))),
+                ft.DataColumn(ft.Text(t("district"))),
+                ft.DataColumn(ft.Text(t("city"))),
+                ft.DataColumn(ft.Text(t("group"))),
+                ft.DataColumn(ft.Text(t("actions"))),
             ],
             rows=[
                 ft.DataRow(
@@ -457,8 +458,8 @@ def update_students_list(page, search_query=None, selected_group=None, selected_
 
 def students_screen(page):
     search_field = ft.TextField(
-        label="Поиск",
-        hint_text="Поиск по ФИО, школе, городу, району или группе",
+        label=t("search"),
+        hint_text=t("search_hint"),
         width=400,
         border_radius=ft.border_radius.all(8),
     )
@@ -478,28 +479,28 @@ def students_screen(page):
         controls=[
             search_field,
             ft.ElevatedButton(
-                "Поиск",
+                t("search"),
                 icon=ft.icons.SEARCH,
                 bgcolor=ft.Colors.BLUE_600,
                 color=ft.Colors.WHITE,
                 on_click=apply_search,
             ),
             ft.ElevatedButton(
-                "Добавить студента",
+                t("add_student"),
                 icon=ft.icons.ADD,
                 bgcolor=ft.Colors.BLUE_600,
                 color=ft.Colors.WHITE,
                 on_click=lambda e: add_student_dialog(page),
             ),
             ft.ElevatedButton(
-                "Выбрать группу",
+                t("select_group"),
                 icon=ft.icons.SELECT_ALL,
                 bgcolor=ft.Colors.BLUE_600,
                 color=ft.Colors.WHITE,
                 on_click=lambda e: select_group_course_dialog(page),
             ),
             ft.ElevatedButton(
-                "Сбросить фильтр",
+                t("reset_filter"),
                 icon=ft.icons.CLEAR,
                 bgcolor=ft.Colors.RED,
                 color=ft.Colors.WHITE,
@@ -523,7 +524,7 @@ def students_screen(page):
         controls=[
             search_row,
             ft.Divider(thickness=1, color=ft.Colors.BLACK),
-            ft.Text("Данные студентов:", size=20, weight=ft.FontWeight.BOLD),
+            ft.Text("Студенттер:", size=20, weight=ft.FontWeight.BOLD),
             ft.Container(
                 content=content,
                 expand=True,
@@ -633,7 +634,7 @@ def add_student_dialog(page):
 
     # Для курса сделаем выпадающий список с фиксированными значениями
     course_number_field = ft.Dropdown(
-        label="Курс",
+        label=t("course"),
         width=300,
         options=[
             ft.dropdown.Option("1"),
@@ -643,37 +644,37 @@ def add_student_dialog(page):
     )
 
     # Поля для ввода данных студента (как в вашем оригинальном коде)
-    fio_field = ft.TextField(label="ФИО")
-    dob_field = ft.TextField(label="Дата рождения")
-    school_field = ft.TextField(label="Школа")
-    region_field = ft.TextField(label="Область")
-    district_field = ft.TextField(label="Район")
-    city_field = ft.TextField(label="Город")
-    address_field = ft.TextField(label="Адрес проживания")
-    parents_field = ft.TextField(label="ФИО родителей")
-    factual_address_field = ft.TextField(label="Фактический адрес")
-    hobbies_field = ft.TextField(label="Хобби")
-    nationality_field = ft.TextField(label="Национальность")
-    citizenship_field = ft.TextField(label="Гражданство")
-    residence_permit_field = ft.TextField(label="РВП или ВНЖ")
-    document_expiry_date_field = ft.TextField(label="Срок действия документа")
-    social_status_field = ft.TextField(label="Социальный статус")
-    orphan_status_field = ft.Checkbox(label="Статус сироты")
-    disability_status_field = ft.Checkbox(label="Статус инвалида")
-    family_support_info_field = ft.TextField(label="Информация о поддержке")
-    previous_residence_field = ft.TextField(label="Предыдущий адрес")
-    current_residence_field = ft.TextField(label="Текущий адрес")
-    housing_type_field = ft.TextField(label="Тип жилья")
-    parents_job_education_field = ft.TextField(label="Образование и должность родителей")
-    family_social_help_field = ft.TextField(label="Адресная соцпомощь")
-    expelled_field = ft.Checkbox(label="Статус отчисления")
-    order_number_field = ft.TextField(label="Номер приказа")
-    group_name_field = ft.TextField(label="Группа")
-    course_number_field = ft.TextField(label="Курс")
+    fio_field = ft.TextField(label=t("full_name"))
+    dob_field = ft.TextField(label=t("birth_date"))
+    school_field = ft.TextField(label=t("school"))
+    region_field = ft.TextField(label=t("region"))
+    district_field = ft.TextField(label=t("district"))
+    city_field = ft.TextField(label=t("city"))
+    address_field = ft.TextField(label=t("address"))
+    parents_field = ft.TextField(label=t("parents_name"))
+    factual_address_field = ft.TextField(label=t("factual_address"))
+    hobbies_field = ft.TextField(label=t("hobbies"))
+    nationality_field = ft.TextField(label=t("nationality"))
+    citizenship_field = ft.TextField(label=t("citizenship"))
+    residence_permit_field = ft.TextField(label=t("residence_permit"))
+    document_expiry_date_field = ft.TextField(label=t("document_expiry"))
+    social_status_field = ft.TextField(label=t("social_status"))
+    orphan_status_field = ft.Checkbox(label=t("orphan_status"))
+    disability_status_field = ft.Checkbox(label=t("disability_status"))
+    family_support_info_field = ft.TextField(label=t("family_support"))
+    previous_residence_field = ft.TextField(label=t("previous_residence"))
+    current_residence_field = ft.TextField(label=t("current_residence"))
+    housing_type_field = ft.TextField(label=t("housing_type"))
+    parents_job_education_field = ft.TextField(label=t("parents_education"))
+    family_social_help_field = ft.TextField(label=t("social_help"))
+    expelled_field = ft.Checkbox(label=t("expelled_status"))
+    order_number_field = ft.TextField(label=t("order_number"))
+    group_name_field = ft.TextField(label=t("group"))
+    course_number_field = ft.TextField(label=t("course"))
     # Добавьте остальные поля как в вашем оригинальном коде
 
     dialog = ft.AlertDialog(
-        title=ft.Text("Добавить студента"),
+        title=ft.Text(t("add_student")),
         content=ft.Container(
             content=ft.ListView(
                 controls=[
@@ -712,8 +713,8 @@ def add_student_dialog(page):
             height=500,
         ),
         actions=[
-            ft.TextButton("Сохранить", on_click=save_student),
-            ft.TextButton("Отмена", on_click=lambda e: page.close(dialog)),
+            ft.TextButton(t("save"), on_click=save_student),
+            ft.TextButton(t("cancel"), on_click=lambda e: page.close(dialog)),
         ],
     )
 

@@ -13,6 +13,9 @@ def t(key):
 def change_language(page, lang):
     global current_language
     current_language = lang  # Устанавливаем новый язык
+    # Force refresh of the current page
+    if hasattr(page, 'on_language_change'):
+        page.on_language_change()
     page.update()  # Перерисовываем все элементы страницы
 
 # Функция для создания Dropdown для выбора языка
@@ -24,7 +27,7 @@ def language_selector(page):
             ft.dropdown.Option("ru", text="Русский"),  # Опция для русского языка
             ft.dropdown.Option("kz", text="Қазақша"),  # Опция для казахского языка
         ],
-        on_change=lambda e: change_language(page, e.control.value),  # Изменение языка при выборе
+        on_change=lambda e: change_language(page, e.data),  # Изменение языка при выборе
         border_color=ft.Colors.BLUE_600,  # Цвет обводки
         border_width=2,  # Толщина обводки
         border_radius=8,  # Скругленные углы

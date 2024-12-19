@@ -1,5 +1,6 @@
 import flet as ft
 import psycopg2
+from Pages.utils import t
 
 def connect_to_db():
     return psycopg2.connect(
@@ -99,7 +100,7 @@ def analyze_students():
 
 def create_pie_chart(data, chart_title):
     if not data:
-        return ft.Text(f"Нет данных для {chart_title}", color=ft.colors.RED)
+        return ft.Text(f"{t('no_data')} {chart_title}", color=ft.colors.RED)
 
     sections = []
     colors = [ft.Colors.BLUE, ft.Colors.GREEN, ft.Colors.PURPLE, ft.Colors.YELLOW, ft.Colors.ORANGE]
@@ -134,30 +135,22 @@ def analytics_screen(page):
         stats = analyze_students()
 
         analytics_container = ft.Column([
-            ft.Text("Аналитика студентов", size=24, weight=ft.FontWeight.BOLD),
-            # ft.Row([
-            #     ft.Column([
-            #         create_pie_chart(stats['social_status'], "Социальный статус")
-            #     ], width=400),
-            #     ft.Column([
-            #         create_pie_chart(stats['orphan_status'], "Статус сирот")
-            #     ], width=400)
-            # ], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Text(t("analytics_title"), size=24, weight=ft.FontWeight.BOLD),
             ft.Row([
                 ft.Column([
-                    create_pie_chart(stats['nationality'], "Топ-5 национальностей")
+                    create_pie_chart(stats['nationality'], t("nationality_chart"))
                 ], width=400)
             ], alignment=ft.MainAxisAlignment.CENTER),
             ft.Row([
                 ft.Column([
-                    create_pie_chart(stats['groups'], "Статистика по группам")
+                    create_pie_chart(stats['groups'], t("groups_chart"))
                 ], width=400),
                 ft.Column([
-                    create_pie_chart(stats['courses'], "Статистика по курсам")
+                    create_pie_chart(stats['courses'], t("courses_chart"))
                 ], width=400)
             ], alignment=ft.MainAxisAlignment.CENTER)
         ])
 
         return analytics_container
     except Exception as e:
-        return ft.Text(f"Ошибка при загрузке аналитики: {e}", color=ft.colors.RED)
+        return ft.Text(f"{t('loading_error')}: {e}", color=ft.colors.RED)

@@ -9,7 +9,6 @@ from Pages.translations import translations
 from Pages.utils import language_selector
 # from Pages.utils import t
 
-# Глобальная переменная для текущего языка
 current_language = "kz"
 
 translations = {
@@ -26,11 +25,9 @@ translations = {
         "type_password": "Құпия сөзді енгізіңіз",
     }
 }
-# # Функция для получения перевода
 def t(key):
     return translations.get(current_language, {}).get(key, key)
 
-# # Функция для изменения языка
 def change_language(page, lang):
     global current_language
     current_language = lang
@@ -58,12 +55,10 @@ def auth_screen(page: ft.Page):
     
     button_border_radius = 8
 
-    # Функция для проверки валидности email
     def validate_email(email):
         pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         return re.match(pattern, email) is not None
 
-    # Обработчик изменения текста в поле email
     def email_change(e, field):
         if validate_email(e.control.value):
             field.error_text = None
@@ -75,43 +70,33 @@ def auth_screen(page: ft.Page):
     
     def on_login_password_change(e):
         password = e.control.value
-        # Проверка длины
         if len(password) < 8:
             login_password_field.error_text = "Пароль должен быть не менее 8 символов"
             login_password_field.border_color = "red"
-        # Проверка на наличие заглавных букв
         elif not any(char.isupper() for char in password):
             login_password_field.error_text = "Пароль должен содержать хотя бы одну заглавную букву"
             login_password_field.border_color = "red"
-        # Проверка на наличие строчных букв
         elif not any(char.islower() for char in password):
             login_password_field.error_text = "Пароль должен содержать хотя бы одну строчную букву"
             login_password_field.border_color = "red"
-        # Проверка на наличие цифр
         elif not any(char.isdigit() for char in password):
             login_password_field.error_text = "Пароль должен содержать хотя бы одну цифру"
             login_password_field.border_color = "red"
-        # Проверка на наличие специальных символов
         elif not any(char in "!@#$%^&*()~" for char in password):
             login_password_field.error_text = "Пароль должен содержать хотя бы один специальный символ (!,@,#,$,%,^,&,*,(,),~)"
             login_password_field.border_color = "red"
-        # Если все условия выполнены
         else:
             login_password_field.error_text = None
             login_password_field.border_color = "green"
-        # Обновление поля
         login_password_field.update()
 
     def on_login(e: ft.ControlEvent):
-        # Проверка формата email
         if not validate_email(login_email_field.value):
             page.snack_bar = ft.SnackBar(
                 ft.Text("Пожалуйста, исправьте ошибки", color="red"), open=True
             )
             page.update()
             return
-
-        # Проверка заполненности полей
         fields = {
             login_email_field: "Поле не может быть пустым!",
             login_password_field: "Поле не может быть пустым!",
@@ -129,8 +114,6 @@ def auth_screen(page: ft.Page):
 
         if not all_fields_filled:
             return
-
-        # Проверка данных пользователя в базе
         try:
             # Запрос пароля из базы
             cur.execute(
@@ -140,7 +123,7 @@ def auth_screen(page: ft.Page):
             user = cur.fetchone()
 
             if user:
-                db_password = user[0]  # Хэшированный пароль из базы
+                db_password = user[0]  # Хэшированный пароль из бд
 
                 # Проверка пароля с помощью crypt
                 cur.execute(
@@ -177,15 +160,15 @@ def auth_screen(page: ft.Page):
             from Pages.dashboard.dashboard import dashboard_screen
             save_session(True, login_email_field.value)
             dash_view = ft.View(route="/dashboard", controls=[])
-            page.views.append(dash_view)  # Добавляем новое представление
-            dashboard_screen(page)  # Добавляем содержимое на страницу
-            page.go("/dashboard")  # Переходим к маршруту
+            page.views.append(dash_view) 
+            dashboard_screen(page) 
+            page.go("/dashboard") 
         else:
             login_password_field.helper_text = "Неверный пароль"
             login_password_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
     
     login_email_field = ft.TextField(
-        label=t("email"),  # Перевод метки
+        label=t("email"), 
         hint_text="example@gmail.com",
         text_vertical_align=-0.30,
         border=ft.InputBorder.OUTLINE,
@@ -195,7 +178,7 @@ def auth_screen(page: ft.Page):
     page.update()
 
     login_password_field = ft.TextField(
-        label=t("password"),  # Перевод метки
+        label=t("password"), 
         hint_text=t("type_password"),
         text_vertical_align=-0.30,
         border=ft.InputBorder.OUTLINE,
@@ -218,9 +201,9 @@ def auth_screen(page: ft.Page):
                         # Добавляем Dropdown для выбора языка
                         ft.Row(
                             controls=[
-                                language_selector(page),  # Добавляем функцию language_selector
+                                language_selector(page),
                             ],
-                            alignment=ft.MainAxisAlignment.END,  # Выравниваем Dropdown вправо
+                            alignment=ft.MainAxisAlignment.END,  
                         ),
                         ft.Container(
                             bgcolor=ft.Colors.WHITE,
@@ -249,7 +232,7 @@ def auth_screen(page: ft.Page):
                                             ),
                                             ft.Container(
                                                 content=ft.ElevatedButton(
-                                                    text=t("login"),  # Используем t() для перевода
+                                                    text=t("login"), 
                                                     color=ft.Colors.WHITE,
                                                     bgcolor=ft.Colors.BLUE_600,
                                                     width=550,
@@ -283,7 +266,8 @@ def auth_screen(page: ft.Page):
     return login_view
 
 def main(page: ft.Page):
-    page.theme_mode = 'light'
+    page.theme_mode = "light"
+    page.window.bgcolor = ft.colors.WHITE
     page.title = 'StudLog'
     page.window.resizable = False
     page.window.maximized = True
