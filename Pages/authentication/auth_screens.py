@@ -115,7 +115,6 @@ def auth_screen(page: ft.Page):
         if not all_fields_filled:
             return
         try:
-            # Запрос пароля из базы
             cur.execute(
                 "SELECT password FROM users WHERE email = %s",
                 (login_email_field.value,)
@@ -267,7 +266,7 @@ def auth_screen(page: ft.Page):
 
 def main(page: ft.Page):
     page.theme_mode = "light"
-    page.window.bgcolor = ft.colors.WHITE
+    page.window.bgcolor = ft.Colors.WHITE
     page.title = 'StudLog'
     page.window.resizable = False
     page.window.maximized = True
