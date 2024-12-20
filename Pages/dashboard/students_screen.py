@@ -2,6 +2,7 @@ import flet as ft
 import psycopg2
 from psycopg2 import sql
 from Pages.utils import t
+from Pages.utils import is_admin
 
 def connect_to_db():
     return psycopg2.connect(
@@ -85,45 +86,45 @@ def view_student_details(page, student_id):
         student = cursor.fetchone()
         
         if student:
-            # Создаем диалоговое окно с подробной информацией о студенте
+            # Create dialog window with detailed student information
             details_dialog = ft.AlertDialog(
-                title=ft.Text(f"{t('student_details')}: {student[1]}"),
-                content=ft.Container(
-                    content=ft.ListView(
-                        controls=[
-                    ft.Text(f"{t('full_name')}: {student[1]}"),
-                    ft.Text(f"{t('birth_date')}: {student[2]}"),
-                    ft.Text(f"{t('school')}: {student[3]}"),
-                    ft.Text(f"{t('region')}: {student[4]}"),
-                    ft.Text(f"{t('district')}: {student[5]}"),
-                    ft.Text(f"{t('city')}: {student[6]}"),
-                    ft.Text(f"{t('address')}: {student[7]}"),
-                    ft.Text(f"{t('parents_name')}: {student[8]}"),
-                    ft.Text(f"{t('factual_address')}: {student[9]}"),
-                    ft.Text(f"{t('hobbies')}: {student[10]}"),
-                    ft.Text(f"{t('nationality')}: {student[11]}"),
-                    ft.Text(f"{t('citizenship')}: {student[12]}"),
-                    ft.Text(f"{t('residence_permit')}: {student[13]}"),
-                    ft.Text(f"{t('document_expiry')}: {student[14]}"),
-                    ft.Text(f"{t('social_status')}: {student[15]}"),
-                    ft.Text(f"{t('orphan_status')}: {t('yes') if student[16] else t('no')}"),
-                    ft.Text(f"{t('disability_status')}: {t('yes') if student[17] else t('no')}"),
-                    ft.Text(f"{t('family_support')}: {student[18]}"),
-                    ft.Text(f"{t('previous_residence')}: {student[19]}"),
-                    ft.Text(f"{t('current_residence')}: {student[20]}"),
-                    ft.Text(f"{t('housing_type')}: {student[21]}"),
-                    ft.Text(f"{t('parents_education')}: {student[22]}"),
-                    ft.Text(f"{t('social_help')}: {student[23]}"),
-                    ft.Text(f"{t('expelled_status')}: {t('yes') if student[24] else t('no')}"),
-                    ft.Text(f"{t('order_number')}: {student[25]}"),
-                    ft.Text(f"{t('group')}: {student[27] or t('no_data')}"),
-                    ft.Text(f"{t('course')}: {student[28] or t('no_data')}"),
+            title=ft.Text(f"{t('student_details')}: {student[1]}"),
+            content=ft.Container(
+                content=ft.ListView(
+                    controls=[
+                        ft.Text(f"{t('full_name')}: {student[1]}"),
+                        ft.Text(f"{t('birth_date')}: {student[2]}"),
+                        ft.Text(f"{t('school')}: {student[3]}"),
+                        ft.Text(f"{t('region')}: {student[4]}"),
+                        ft.Text(f"{t('district')}: {student[5]}"),
+                        ft.Text(f"{t('city')}: {student[6]}"),
+                        ft.Text(f"{t('address')}: {student[7]}"),
+                        ft.Text(f"{t('parents_name')}: {student[8]}"),
+                        ft.Text(f"{t('factual_address')}: {student[9]}"),
+                        ft.Text(f"{t('hobbies')}: {student[10]}"),
+                        ft.Text(f"{t('nationality')}: {student[11]}"),
+                        ft.Text(f"{t('citizenship')}: {student[12]}"),
+                        ft.Text(f"{t('residence_permit')}: {student[13]}"),
+                        ft.Text(f"{t('document_expiry')}: {student[14]}"),
+                        ft.Text(f"{t('social_status')}: {student[15]}"),
+                        ft.Text(f"f{t('orphan_status')}: {t('yes') if student[16] else t('no')}"),
+                        ft.Text(f"{t('disability_status')}: {t('yes') if student[17] else t('no')}"),
+                        ft.Text(f"{t('family_support')}: {student[18]}"),
+                        ft.Text(f"{t('previous_residence')}: {student[19]}"),
+                        ft.Text(f"{t('current_residence')}: {student[20]}"),
+                        ft.Text(f"{t('housing_type')}: {student[21]}"),
+                        ft.Text(f"{t('parents_education')}: {student[22]}"),
+                        ft.Text(f"{t('social_help')}: {student[23]}"),
+                        ft.Text(f"{t('expelled_status')}: {t('yes') if student[24] else t('no')}"),
+                        ft.Text(f"{t('order_number')}: {student[25]}"),
+                        ft.Text(f"{t('group')}: {student[27] or t('no_data')}"),
+                        ft.Text(f"{t('course')}: {student[28] or t('no_data')}")
                     ],
                     spacing=10,
-                    expand=True,
-                ),
-                width=700,
-                height=500,
+                    expand=True
+                    ),
+                    width=700,
+                    height=500
                 ),
                 actions=[
                     ft.TextButton(t("cancel"), on_click=lambda e: page.close(details_dialog))
@@ -348,6 +349,34 @@ def delete_student(page, student_id):
     delete_dialog.open = True
     page.update()
 
+def create_action_buttons(student_id, page):
+    is_admin_user = is_admin()
+    if not is_admin_user:
+        # Return empty list for student role - no actions available
+        return []
+    
+    # Only admin can see all actions
+    return [
+        ft.IconButton(
+            icon=ft.icons.VISIBILITY,
+            tooltip=t("view"),
+            icon_color=ft.Colors.BLUE_600,
+            on_click=lambda e, sid=student_id: view_student_details(page, sid)
+        ),
+        ft.IconButton(
+            icon=ft.icons.EDIT,
+            tooltip=t("edit"),
+            icon_color=ft.Colors.BLUE_600,
+            on_click=lambda e, sid=student_id: edit_student_dialog(page, sid)
+        ),
+        ft.IconButton(
+            icon=ft.icons.DELETE,
+            tooltip=t("delete"),
+            icon_color=ft.Colors.BLUE_600,
+            on_click=lambda e, sid=student_id: delete_student(page, sid)
+        )
+    ]
+
 def update_students_list(page, search_query=None, selected_group=None, selected_course=None):
     global students_table, content
     content.controls.clear()
@@ -406,26 +435,7 @@ def update_students_list(page, search_query=None, selected_group=None, selected_
                         ft.DataCell(ft.Text(str(row[6]))),  # Город
                         ft.DataCell(ft.Text(str(row[7] or ''))),  # Группа
                         ft.DataCell(
-                            ft.Row([
-                                ft.IconButton(
-                                    icon=ft.icons.VISIBILITY, 
-                                    tooltip="Просмотр",
-                                    icon_color=ft.Colors.BLUE_600,
-                                    on_click=lambda e, sid=row[0]: view_student_details(page, sid)
-                                ),
-                                ft.IconButton(
-                                    icon=ft.icons.EDIT, 
-                                    tooltip="Редактировать",
-                                    icon_color=ft.Colors.BLUE_600,
-                                    on_click=lambda e, sid=row[0]: edit_student_dialog(page, sid)
-                                ),
-                                ft.IconButton(
-                                    icon=ft.icons.DELETE, 
-                                    tooltip="Удалить",
-                                    icon_color=ft.Colors.BLUE_600,
-                                    on_click=lambda e, sid=row[0]: delete_student(page, sid)
-                                )
-                            ])
+                            ft.Row(create_action_buttons(row[0], page))  # Pass page as argument
                         )
                     ]
                 ) for row in rows
@@ -457,6 +467,8 @@ def update_students_list(page, search_query=None, selected_group=None, selected_
         content.controls.append(ft.Text(f"Ошибка загрузки данных: {e}", color=ft.colors.RED))
 
 def students_screen(page):
+    is_admin_user = is_admin()
+    
     search_field = ft.TextField(
         label=t("search"),
         hint_text=t("search_hint"),
@@ -475,6 +487,7 @@ def students_screen(page):
         page.snack_bar.open = True
         page.update()
 
+    # Modified search_row to show add_student button for all users, but other admin buttons only for admins
     search_row = ft.Row(
         controls=[
             search_field,
@@ -492,6 +505,7 @@ def students_screen(page):
                 color=ft.Colors.WHITE,
                 on_click=lambda e: add_student_dialog(page),
             ),
+        ] + ([  # Only show these buttons for admin users
             ft.ElevatedButton(
                 t("select_group"),
                 icon=ft.icons.SELECT_ALL,
@@ -506,10 +520,11 @@ def students_screen(page):
                 color=ft.Colors.WHITE,
                 on_click=reset_filter,
             ),
-        ],
+        ] if is_admin_user else []),
         spacing=20,
         alignment=ft.MainAxisAlignment.START,
     )
+    
 
     global content
     content = ft.Column(

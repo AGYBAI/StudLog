@@ -47,9 +47,13 @@ def is_user_logged_in():
             return session.get("is_logged_in", False)
     return False
 
-def save_session(is_logged_in, email=""):
+def save_session(is_logged_in, email="", role="student"):
     with open(SESSION_FILE, "w") as file:
-        json.dump({"is_logged_in": is_logged_in, "user_email": email}, file)
+        json.dump({
+            "is_logged_in": is_logged_in, 
+            "user_email": email,
+            "role": role
+        }, file)
 
 def auth_screen(page: ft.Page):
     
@@ -116,14 +120,13 @@ def auth_screen(page: ft.Page):
             return
         try:
             cur.execute(
-                "SELECT password FROM users WHERE email = %s",
+                "SELECT password, role FROM users WHERE email = %s",
                 (login_email_field.value,)
             )
             user = cur.fetchone()
 
             if user:
-                db_password = user[0]  # Хэшированный пароль из бд
-
+                db_password, role = user[0], user[1]
                 # Проверка пароля с помощью crypt
                 cur.execute(
                     "SELECT crypt(%s, %s) = %s",
@@ -134,7 +137,7 @@ def auth_screen(page: ft.Page):
                 if is_valid:
                     page.snack_bar = ft.SnackBar(ft.Text("Вход выполнен! ✅", color="green"), open=True)
                     from Pages.dashboard.dashboard import dashboard_screen
-                    save_session(True, login_email_field.value)
+                    save_session(True, login_email_field.value, role)
                     dash_view = ft.View(route="/dashboard", controls=[])
                     page.views.append(dash_view)
                     dashboard_screen(page)
@@ -287,3 +290,5 @@ def main(page: ft.Page):
 
 if __name__ == '__main__':
     ft.app(target=main)
+    # # вебе
+    # ft.app(target=main, view=ft.WEB_BROWSER)

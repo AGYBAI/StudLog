@@ -84,6 +84,11 @@ translations = {
         # Settings screen
         "theme_mode": "Темная тема",
         "settings_title": "Настройки приложения",
+        
+        # New translations
+        "access_denied": "Доступ запрещен",
+        "admin_only": "Эта функция доступна только администраторам",
+        "student_view": "Режим просмотра",
     },
     "kz": {
         # Auth screens
@@ -168,5 +173,10 @@ translations = {
         # Settings screen
         "theme_mode": "Қараңғы тақырып",
         "settings_title": "Қолданба параметрлері",
+        
+        # New translations
+        "access_denied": "Қатынау рұқсат етілмеген",
+        "admin_only": "Бұл функция тек әкімшілерге қолжетімді",
+        "student_view": "Қарау режимі",
     }
 }
