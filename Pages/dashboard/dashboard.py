@@ -6,7 +6,7 @@ from Pages.dashboard.support_screen import support_screen
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from Pages.dashboard.settings_screen import settings_screen
-from Pages.authentication.auth_screens import auth_screen, main, save_session
+from Pages.authentication.auth_screens import auth_screen, save_session
 from Pages.dashboard.analytics_screen import analytics_screen
 from Pages.dashboard.students_screen import students_screen
 from Pages.utils import language_selector
@@ -16,10 +16,6 @@ content = ft.Column(
         controls=[],
         alignment=ft.MainAxisAlignment.START,
         expand=True,
-    )
-login_view = ft.View(
-        route="/auth_screen",
-        controls=[]  # Создаем пустую страницу
     )
 
 def dashboard_screen(page: ft.Page):
@@ -31,6 +27,9 @@ def dashboard_screen(page: ft.Page):
     page.padding = ft.padding.all(0)
     page.bgcolor = ft.Colors.WHITE
 
+    # Get the absolute path to the assets directory
+    assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../assets"))
+    logo_path = os.path.join(assets_dir, "logo.png")
 
     def change_screen(e):
         selected_index = rail.selected_index
@@ -38,15 +37,35 @@ def dashboard_screen(page: ft.Page):
 
     def update_content(selected_index):
         content.controls.clear()
-        if selected_index == 0:
-            content.controls.append(students_screen(page))
-        elif selected_index == 1:
-            content.controls.append(analytics_screen(page))
-        elif selected_index == 2:
-            content.controls.append(settings_screen(page))
-        elif selected_index == 3:
-            content.controls.append(support_screen(page))
-        page.update()
+        try:
+            if selected_index == 0:
+                students_component = students_screen(page)
+                content.controls.append(students_component)
+            elif selected_index == 1:
+                analytics_component = analytics_screen(page)
+                content.controls.append(analytics_component)
+            elif selected_index == 2:
+                settings_component = settings_screen(page)
+                content.controls.append(settings_component)
+            elif selected_index == 3:
+                support_component = support_screen(page)
+                content.controls.append(support_component)
+            page.update()
+        except Exception as e:
+            print(f"Error updating content: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            # Display error message to user
+            error_message = ft.Text(
+                f"Error loading content: {str(e)}",
+                color=ft.Colors.RED_500,
+                size=16,
+                weight=ft.FontWeight.BOLD
+            )
+            content.controls.append(error_message)
+            content.controls.append(ft.ElevatedButton("Try Again", on_click=lambda _: update_content(selected_index)))
+            page.update()
 
     # Define language change handler
     def on_language_change():
@@ -71,7 +90,7 @@ def dashboard_screen(page: ft.Page):
         leading=ft.Column(
             controls=[
                 ft.Image(
-                    src="/Users/gibatolla/Documents/Практика/StudLog/assets/logo.png",
+                    src=logo_path,
                     width=200,
                     height=200,
                 ),
@@ -110,10 +129,10 @@ def dashboard_screen(page: ft.Page):
     page.nav_rail = rail
     
     def update_container_theme():
-        main_container.bgcolor = ft.colors.WHITE if page.theme_mode == "light" else ft.colors.GREY_900
+        main_container.bgcolor = ft.Colors.WHITE if page.theme_mode == "light" else ft.Colors.GREY_900
         main_container.border = ft.border.all(
             1, 
-            ft.colors.GREY_300 if page.theme_mode == "light" else ft.colors.GREY_700
+            ft.Colors.GREY_300 if page.theme_mode == "light" else ft.Colors.GREY_700
         )
         page.update()
 
@@ -123,12 +142,12 @@ def dashboard_screen(page: ft.Page):
     main_container = ft.Container(
         content=content,
         expand=True,
-        bgcolor=ft.colors.WHITE if page.theme_mode == "light" else ft.colors.GREY_900,
+        bgcolor=ft.Colors.WHITE if page.theme_mode == "light" else ft.Colors.GREY_900,
         padding=ft.padding.all(16),
         border_radius=ft.border_radius.all(12),
         border=ft.border.all(
             1, 
-            ft.colors.GREY_300 if page.theme_mode == "light" else ft.colors.GREY_700
+            ft.Colors.GREY_300 if page.theme_mode == "light" else ft.Colors.GREY_700
         ),
     )
 
@@ -148,12 +167,29 @@ def dashboard_screen(page: ft.Page):
 
 
 def logout(page: ft.Page):
-    from Pages.authentication.auth_screens import auth_screen
-
-    # Закрытие текущей сессии
-    save_session(False, "")
-    page.views.clear()  # Удаляем все представления
-    auth_view = auth_screen(page)  # Получаем представление экрана авторизации
-    page.views.append(auth_view)  # Добавляем экран авторизации в список представлений
-    page.go("/auth_screen")  # Переходим к маршруту авторизации
+    try:
+        # Close the current session
+        save_session(False, "")
+        
+        # Clear all views
+        page.views.clear()
+        
+        # Import auth_screen only when needed to avoid circular imports
+        from Pages.authentication.auth_screens import auth_screen
+        
+        # Create new auth view
+        auth_view = auth_screen(page)
+        
+        # Add the auth view to page views
+        page.views.append(auth_view)
+        
+        # Navigate to auth screen
+        page.go("/auth_screen")
+        
+        # Update the page
+        page.update()
+    except Exception as e:
+        print(f"Error during logout: {str(e)}")
+        import traceback
+        traceback.print_exc()
 

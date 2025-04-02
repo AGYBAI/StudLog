@@ -3,18 +3,51 @@ import psycopg2
 from Pages.utils import t
 
 def connect_to_db():
-    return psycopg2.connect(
-        dbname="railway",
-        user="postgres",
-        password="dfFudMqjdNUrRDNEvvTVVvBaNztZfxaP",
-        host="autorack.proxy.rlwy.net",
-        port="33741"
-    )
+    try:
+        # Database configuration
+        db_config = {
+            "dbname": "railway",
+            "user": "postgres",
+            "password": "dfFudMqjdNUrRDNEvvTVVvBaNztZfxaP", 
+            "host": "autorack.proxy.rlwy.net",
+            "port": "33741"
+        }
+        
+        # Log connection attempt
+        print(f"Analytics - Attempting to connect to database at {db_config['host']}:{db_config['port']}")
+        
+        # Create connection
+        conn = psycopg2.connect(**db_config)
+        
+        # Test connection
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        cursor.close()
+        
+        print("Analytics - Database connection successful!")
+        return conn
+    except Exception as e:
+        print(f"Analytics - Database connection error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 def analyze_students():
+    conn = None
     try:
-        # Подключение к базе данных
+        # Connect to database
         conn = connect_to_db()
+        if not conn:
+            return {
+                'error': "Could not connect to database",
+                'social_status': [],
+                'orphan_status': [],
+                'nationality': [],
+                'groups': [],
+                'courses': []
+            }
+            
         cursor = conn.cursor()
 
         # Анализ социальных статусов студентов
@@ -79,7 +112,6 @@ def analyze_students():
         course_stats = cursor.fetchall()
 
         cursor.close()
-        conn.close()
 
         return {
             'social_status': social_status_stats,
@@ -90,17 +122,23 @@ def analyze_students():
         }
     except Exception as e:
         print(f"Ошибка при анализе данных: {e}")
+        import traceback
+        traceback.print_exc()
         return {
+            'error': str(e),
             'social_status': [],
             'orphan_status': [],
             'nationality': [],
             'groups': [],
             'courses': []
         }
+    finally:
+        if conn:
+            conn.close()
 
 def create_pie_chart(data, chart_title):
     if not data:
-        return ft.Text(f"{t('no_data')} {chart_title}", color=ft.colors.RED)
+        return ft.Text(f"{t('no_data')} {chart_title}", color=ft.Colors.RED)
 
     sections = []
     colors = [ft.Colors.BLUE, ft.Colors.GREEN, ft.Colors.PURPLE, ft.Colors.YELLOW, ft.Colors.ORANGE]
@@ -133,7 +171,53 @@ def create_pie_chart(data, chart_title):
 def analytics_screen(page):
     try:
         stats = analyze_students()
+        
+        # Check if there was an error
+        if 'error' in stats:
+            return ft.Column([
+                ft.Text(t("analytics_title"), size=24, weight=ft.FontWeight.BOLD),
+                ft.Container(
+                    content=ft.Text(
+                        f"{t('loading_error')}: {stats['error']}", 
+                        color=ft.Colors.RED_500,
+                        size=16,
+                        weight=ft.FontWeight.W500
+                    ),
+                    margin=ft.margin.only(top=20),
+                    alignment=ft.alignment.center
+                ),
+                ft.Container(
+                    content=ft.ElevatedButton(
+                        "Try Again",
+                        on_click=lambda _: page.update_content(page.nav_rail.selected_index)
+                    ),
+                    margin=ft.margin.only(top=10),
+                    alignment=ft.alignment.center
+                )
+            ])
 
+        # Check if there's data to display
+        has_data = (
+            len(stats['nationality']) > 0 or 
+            len(stats['groups']) > 0 or 
+            len(stats['courses']) > 0
+        )
+        
+        if not has_data:
+            return ft.Column([
+                ft.Text(t("analytics_title"), size=24, weight=ft.FontWeight.BOLD),
+                ft.Container(
+                    content=ft.Text(
+                        t("no_data"),
+                        size=16,
+                        weight=ft.FontWeight.W500
+                    ),
+                    margin=ft.margin.only(top=20),
+                    alignment=ft.alignment.center
+                )
+            ])
+            
+        # Build analytics UI
         analytics_container = ft.Column([
             ft.Text(t("analytics_title"), size=24, weight=ft.FontWeight.BOLD),
             ft.Row([
@@ -153,4 +237,17 @@ def analytics_screen(page):
 
         return analytics_container
     except Exception as e:
-        return ft.Text(f"{t('loading_error')}: {e}", color=ft.colors.RED)
+        import traceback
+        traceback.print_exc()
+        return ft.Column([
+            ft.Text(t("analytics_title"), size=24, weight=ft.FontWeight.BOLD),
+            ft.Container(
+                content=ft.Text(
+                    f"{t('loading_error')}: {str(e)}", 
+                    color=ft.Colors.RED_500,
+                    size=16,
+                    weight=ft.FontWeight.W500
+                ),
+                margin=ft.margin.only(top=20)
+            )
+        ])

@@ -7,6 +7,35 @@ translations = {
         "email": "Электронная почта",
         "password": "Пароль",
         "type_password": "Введите свой пароль",
+        "register": "Регистрация",
+        "no_account": "Нет аккаунта? Зарегистрироваться",
+        "have_account": "Уже есть аккаунт? Войти",
+        # Password validation
+        "password_min_length": "Пароль должен быть не менее 8 символов",
+        "password_uppercase": "Пароль должен содержать хотя бы одну заглавную букву",
+        "password_lowercase": "Пароль должен содержать хотя бы одну строчную букву",
+        "password_digit": "Пароль должен содержать хотя бы одну цифру",
+        "password_special": "Пароль должен содержать хотя бы один специальный символ (!,@,#,$,%,^,&,*,(,),~)",
+        # Registration
+        "confirm_password": "Подтверждение пароля",
+        "confirm_password_hint": "Повторно введите пароль",
+        "passwords_dont_match": "Пароли не совпадают",
+        "enter_full_name": "Введите полное имя (имя и фамилию)",
+        "full_name_hint": "Иванов Иван Иванович",
+        "student_role": "Студент",
+        "admin_role": "Администратор",
+        "email_already_registered": "Этот email уже зарегистрирован",
+        "registration_success": "Регистрация успешна! Теперь вы можете войти.",
+        "registration_error": "Ошибка при регистрации",
+        # Validation messages
+        "invalid_email": "Введите корректный email",
+        "invalid_password": "Неверный пароль",
+        "user_not_found": "Пользователь с таким email не найден",
+        "fill_all_fields": "Заполните все поля",
+        "fix_errors": "Пожалуйста, исправьте ошибки",
+        "connection_error": "Ошибка подключения к базе данных",
+        "login_error": "Ошибка при входе",
+        "login_success": "Вход выполнен! ✅",
         
         # Dashboard
         "main": "Главная",
@@ -89,6 +118,7 @@ translations = {
         "access_denied": "Доступ запрещен",
         "admin_only": "Эта функция доступна только администраторам",
         "student_view": "Режим просмотра",
+        "select_role": "Выберите роль",
     },
     "kz": {
         # Auth screens
@@ -96,6 +126,35 @@ translations = {
         "email": "Электрондық пошта",
         "password": "Құпия сөз",
         "type_password": "Құпия сөзді енгізіңіз",
+        "register": "Тіркелу",
+        "no_account": "Аккаунтыңыз жоқ па? Тіркелу",
+        "have_account": "Аккаунтыңыз бар ма? Кіру",
+        # Password validation
+        "password_min_length": "Құпия сөз кем дегенде 8 таңбадан тұруы керек",
+        "password_uppercase": "Құпия сөзде кем дегенде бір бас әріп болуы керек",
+        "password_lowercase": "Құпия сөзде кем дегенде бір кіші әріп болуы керек",
+        "password_digit": "Құпия сөзде кем дегенде бір сан болуы керек",
+        "password_special": "Құпия сөзде кем дегенде бір арнайы таңба болуы керек (!,@,#,$,%,^,&,*,(,),~)",
+        # Registration
+        "confirm_password": "Құпия сөзді растау",
+        "confirm_password_hint": "Құпия сөзді қайта енгізіңіз",
+        "passwords_dont_match": "Құпия сөздер сәйкес келмейді",
+        "enter_full_name": "Толық атыңызды енгізіңіз (аты-жөні)",
+        "full_name_hint": "Асанов Асан Асанұлы",
+        "student_role": "Студент",
+        "admin_role": "Әкімші",
+        "email_already_registered": "Бұл электрондық пошта тіркелген",
+        "registration_success": "Тіркелу сәтті! Енді кіре аласыз.",
+        "registration_error": "Тіркеу кезінде қате",
+        # Validation messages
+        "invalid_email": "Дұрыс электрондық поштаны енгізіңіз",
+        "invalid_password": "Құпия сөз дұрыс емес",
+        "user_not_found": "Бұл электрондық поштамен пайдаланушы табылмады",
+        "fill_all_fields": "Барлық өрістерді толтырыңыз",
+        "fix_errors": "Қателерді түзетіңіз",
+        "connection_error": "Дерекқорға қосылу қатесі",
+        "login_error": "Кіру кезінде қате",
+        "login_success": "Сәтті кірдіңіз! ✅",
         
         # Dashboard
         "main": "Басты бет",
@@ -178,5 +237,6 @@ translations = {
         "access_denied": "Қатынау рұқсат етілмеген",
         "admin_only": "Бұл функция тек әкімшілерге қолжетімді",
         "student_view": "Қарау режимі",
+        "select_role": "Рөлді таңдаңыз",
     }
 }

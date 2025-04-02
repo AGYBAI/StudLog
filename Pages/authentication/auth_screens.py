@@ -4,56 +4,52 @@ import os
 import json
 from psycopg2 import connect
 import sys
+import traceback
+
+# Add parent directory to path to allow imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from Pages.translations import translations
-from Pages.utils import language_selector
-# from Pages.utils import t
+from Pages.utils import t, change_language, language_selector
 
-current_language = "kz"
-
-translations = {
-    "ru": {
-        "login": "Вход",
-        "email": "Электронная почта",
-        "password": "Пароль",
-        "type_password": "Введите свой пароль",
-    },
-    "kz": {
-        "login": "Кіру",
-        "email": "Электрондық пошта",
-        "password": "Құпия сөз",
-        "type_password": "Құпия сөзді енгізіңіз",
-    }
+# Database configuration
+DB_CONFIG = {
+    "dbname": "railway",
+    "user": "postgres",
+    "password": "dfFudMqjdNUrRDNEvvTVVvBaNztZfxaP",
+    "host": "autorack.proxy.rlwy.net",
+    "port": "33741"
 }
-def t(key):
-    return translations.get(current_language, {}).get(key, key)
 
-def change_language(page, lang):
-    global current_language
-    current_language = lang
-    page.update()
-
-
-con = connect(dbname="railway", user="postgres", password="dfFudMqjdNUrRDNEvvTVVvBaNztZfxaP",
-              host="autorack.proxy.rlwy.net", port="33741")
-cur = con.cursor()
-
+# Session file path 
 SESSION_FILE = "session.json"
+
+def connect_to_db():
+    try:
+        return connect(**DB_CONFIG)
+    except Exception as e:
+        print(f"Database connection error: {str(e)}")
+        return None
 
 def is_user_logged_in():
     if os.path.exists(SESSION_FILE):
-        with open(SESSION_FILE, "r") as file:
-            session = json.load(file)
-            return session.get("is_logged_in", False)
+        try:
+            with open(SESSION_FILE, "r") as file:
+                session = json.load(file)
+                return session.get("is_logged_in", False)
+        except Exception as e:
+            print(f"Error reading session file: {str(e)}")
     return False
 
 def save_session(is_logged_in, email="", role="student"):
-    with open(SESSION_FILE, "w") as file:
-        json.dump({
-            "is_logged_in": is_logged_in, 
-            "user_email": email,
-            "role": role
-        }, file)
+    try:
+        with open(SESSION_FILE, "w") as file:
+            json.dump({
+                "is_logged_in": is_logged_in, 
+                "user_email": email,
+                "role": role
+            }, file)
+    except Exception as e:
+        print(f"Error saving session: {str(e)}")
 
 def auth_screen(page: ft.Page):
     
@@ -68,26 +64,26 @@ def auth_screen(page: ft.Page):
             field.error_text = None
             field.border_color = "green"
         else:
-            field.error_text = "Введите корректный email"
+            field.error_text = t("invalid_email")
             field.border_color = "red"
         field.update()
     
     def on_login_password_change(e):
         password = e.control.value
         if len(password) < 8:
-            login_password_field.error_text = "Пароль должен быть не менее 8 символов"
+            login_password_field.error_text = t("password_min_length")
             login_password_field.border_color = "red"
         elif not any(char.isupper() for char in password):
-            login_password_field.error_text = "Пароль должен содержать хотя бы одну заглавную букву"
+            login_password_field.error_text = t("password_uppercase")
             login_password_field.border_color = "red"
         elif not any(char.islower() for char in password):
-            login_password_field.error_text = "Пароль должен содержать хотя бы одну строчную букву"
+            login_password_field.error_text = t("password_lowercase")
             login_password_field.border_color = "red"
         elif not any(char.isdigit() for char in password):
-            login_password_field.error_text = "Пароль должен содержать хотя бы одну цифру"
+            login_password_field.error_text = t("password_digit")
             login_password_field.border_color = "red"
         elif not any(char in "!@#$%^&*()~" for char in password):
-            login_password_field.error_text = "Пароль должен содержать хотя бы один специальный символ (!,@,#,$,%,^,&,*,(,),~)"
+            login_password_field.error_text = t("password_special")
             login_password_field.border_color = "red"
         else:
             login_password_field.error_text = None
@@ -97,78 +93,97 @@ def auth_screen(page: ft.Page):
     def on_login(e: ft.ControlEvent):
         if not validate_email(login_email_field.value):
             page.snack_bar = ft.SnackBar(
-                ft.Text("Пожалуйста, исправьте ошибки", color="red"), open=True
+                ft.Text(t("fix_errors"), color="red"), open=True
             )
             page.update()
             return
-        fields = {
-            login_email_field: "Поле не может быть пустым!",
-            login_password_field: "Поле не может быть пустым!",
-        }
-        all_fields_filled = True
 
-        for field, error_text in fields.items():
-            if not field.value:
-                field.helper_text = error_text
-                field.helper_style = ft.TextStyle(color=ft.Colors.RED)
-                all_fields_filled = False
-            else:
-                field.helper_text = ""
-            field.update()
-
-        if not all_fields_filled:
-            return
-        try:
-            cur.execute(
-                "SELECT password, role FROM users WHERE email = %s",
-                (login_email_field.value,)
+        if not login_email_field.value or not login_password_field.value:
+            page.snack_bar = ft.SnackBar(
+                ft.Text(t("fill_all_fields"), color="red"), open=True
             )
-            user = cur.fetchone()
+            page.update()
+            return
 
-            if user:
-                db_password, role = user[0], user[1]
-                # Проверка пароля с помощью crypt
-                cur.execute(
-                    "SELECT crypt(%s, %s) = %s",
-                    (login_password_field.value, db_password, db_password)
+        try:
+            conn = connect_to_db()
+            if not conn:
+                page.snack_bar = ft.SnackBar(
+                    ft.Text(t("connection_error"), color="red"), open=True
                 )
-                is_valid = cur.fetchone()[0]
-
-                if is_valid:
-                    page.snack_bar = ft.SnackBar(ft.Text("Вход выполнен! ✅", color="green"), open=True)
+                page.update()
+                return
+                
+            cur = conn.cursor()
+            
+            print(f"DEBUG - Attempting login for email: {login_email_field.value}")
+            
+            # Simplify the login query
+            cur.execute("""
+                SELECT id, email, role 
+                FROM users 
+                WHERE LOWER(email) = LOWER(%s) 
+                AND password = crypt(%s, password);
+            """, (login_email_field.value, login_password_field.value))
+            
+            user = cur.fetchone()
+            
+            if user:
+                user_id, email, role = user
+                print(f"DEBUG - Login successful for user: {email}, role: {role}")
+                
+                page.snack_bar = ft.SnackBar(ft.Text(t("login_success"), color="green"), open=True)
+                save_session(True, email, role)
+                
+                try:
+                    # Clear views and navigate to dashboard
+                    page.views.clear()
+                    
                     from Pages.dashboard.dashboard import dashboard_screen
-                    save_session(True, login_email_field.value, role)
-                    dash_view = ft.View(route="/dashboard", controls=[])
+                    dash_view = ft.View(
+                        route="/dashboard",
+                        controls=[]
+                    )
                     page.views.append(dash_view)
                     dashboard_screen(page)
                     page.go("/dashboard")
-                else:
-                    login_password_field.helper_text = "Неверный пароль"
-                    login_password_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+                except Exception as nav_error:
+                    print(f"DEBUG - Navigation error: {str(nav_error)}")
+                    traceback.print_exc()
+                    page.snack_bar = ft.SnackBar(
+                        ft.Text(f"Navigation error: {str(nav_error)}", color="red"), open=True
+                    )
             else:
-                login_email_field.helper_text = "Пользователь с таким email не найден"
-                login_email_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
+                # Check if user exists
+                cur.execute("SELECT 1 FROM users WHERE LOWER(email) = LOWER(%s)", (login_email_field.value,))
+                if cur.fetchone():
+                    print(f"DEBUG - Invalid password for user: {login_email_field.value}")
+                    login_password_field.error_text = t("invalid_password")
+                else:
+                    print(f"DEBUG - User not found: {login_email_field.value}")
+                    login_email_field.error_text = t("user_not_found")
+                page.update()
+
+            cur.close()
+            conn.close()
 
         except Exception as error:
+            print(f"DEBUG - Login error: {str(error)}")
+            traceback.print_exc()
             page.snack_bar = ft.SnackBar(
-                ft.Text(f"Ошибка при входе: {error}", color="red"), open=True
+                ft.Text(f"{t('login_error')}: {str(error)}", color="red"), open=True
             )
         finally:
-            login_email_field.update()
-            login_password_field.update()
             page.update()
-
-        if user and login_password_field.value == user[0]:
-            from Pages.dashboard.dashboard import dashboard_screen
-            save_session(True, login_email_field.value)
-            dash_view = ft.View(route="/dashboard", controls=[])
-            page.views.append(dash_view) 
-            dashboard_screen(page) 
-            page.go("/dashboard") 
-        else:
-            login_password_field.helper_text = "Неверный пароль"
-            login_password_field.helper_style = ft.TextStyle(color=ft.Colors.RED)
     
+    def go_to_register(e):
+        from Pages.authentication.register_screen import register_screen
+        register_view = register_screen(page)
+        page.views.clear()
+        page.views.append(register_view)
+        page.go("/register")
+        page.update()
+
     login_email_field = ft.TextField(
         label=t("email"), 
         hint_text="example@gmail.com",
@@ -190,6 +205,10 @@ def auth_screen(page: ft.Page):
     )
     page.update()
 
+    # Get the absolute path to the assets directory
+    assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../assets"))
+    logo_path = os.path.join(assets_dir, "logo.png")
+
     login_view = ft.View(
         route="/auth_screen",
         controls=[
@@ -200,7 +219,7 @@ def auth_screen(page: ft.Page):
                 padding=ft.padding.all(0),
                 content=ft.Column(
                     controls=[
-                        # Добавляем Dropdown для выбора языка
+                        # Add language selector
                         ft.Row(
                             controls=[
                                 language_selector(page),
@@ -216,10 +235,10 @@ def auth_screen(page: ft.Page):
                             content=ft.Column(
                                 controls=[
                                     ft.Image(
-                                            src="/Users/gibatolla/Documents/Практика/StudLog/assets/logo.png",
-                                                width=200,
-                                                height=200,
-                                            ),
+                                            src=logo_path,
+                                            width=200,
+                                            height=200,
+                                        ),
                                     ft.Text(value=t("login"), weight="bold", size=20, color=ft.Colors.BLACK),
                                     ft.Divider(height=2, color=ft.Colors.with_opacity(0.25, ft.Colors.GREY),
                                                thickness=1),
@@ -243,6 +262,14 @@ def auth_screen(page: ft.Page):
                                                         shape=ft.RoundedRectangleBorder(radius=button_border_radius)
                                                     ),
                                                     on_click=on_login,
+                                                ),
+                                                alignment=ft.alignment.center,
+                                            ),
+                                            # Update register button
+                                            ft.Container(
+                                                content=ft.TextButton(
+                                                    text=t("no_account"),
+                                                    on_click=go_to_register
                                                 ),
                                                 alignment=ft.alignment.center,
                                             ),
@@ -278,15 +305,19 @@ def main(page: ft.Page):
 
     if is_user_logged_in():
         from Pages.dashboard.dashboard import dashboard_screen
+        page.views.clear()  # Очищаем все представления
         dash_view = ft.View(route="/dashboard", controls=[])
         page.views.append(dash_view)
         dashboard_screen(page)
         page.go("/dashboard")
-        page.update()
     else:
-        auth_screen_view = auth_screen(page)
-        page.views.append(auth_screen_view)
+        from Pages.authentication.register_screen import register_screen
+        page.views.clear()  # Очищаем все представления
+        auth_view = auth_screen(page)
+        register_view = register_screen(page)
+        page.views.extend([auth_view, register_view])
         page.go("/auth_screen")
+    page.update()
 
 if __name__ == '__main__':
     ft.app(target=main)
