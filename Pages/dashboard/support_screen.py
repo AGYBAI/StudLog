@@ -4,7 +4,7 @@ from Pages.utils import t
 def open_telegram_bot(e):
     # TODO: Replace 'your_bot_username' with your actual Telegram bot username
     import webbrowser
-    webbrowser.open('https://t.me/h3lpy_bot')
+    webbrowser.open('https://t.me/qewqweqbot')
 
 def support_screen(page: ft.Page):
     return ft.Container(

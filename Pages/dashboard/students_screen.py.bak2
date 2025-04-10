@@ -1,0 +1,2575 @@
+import flet as ft
+import psycopg2
+from psycopg2 import sql
+import traceback  # Import traceback for better error reporting
+from Pages.utils import t
+from Pages.utils import is_admin
+import datetime
+import os
+import tempfile
+import time
+import subprocess
+import sys
+
+# Проверка и установка xlsxwriter
+def ensure_xlsxwriter_installed():
+    global EXCEL_AVAILABLE
+    try:
+        import xlsxwriter
+        EXCEL_AVAILABLE = True
+        print("xlsxwriter is available")
+        return True
+    except ImportError:
+        EXCEL_AVAILABLE = False
+        print("xlsxwriter is not installed. Attempting to install...")
+        try:
+            # Устанавливаем xlsxwriter с помощью pip
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "xlsxwriter"])
+            import xlsxwriter
+            EXCEL_AVAILABLE = True
+            print("xlsxwriter successfully installed")
+            return True
+        except Exception as e:
+            print(f"Failed to install xlsxwriter: {e}")
+            EXCEL_AVAILABLE = False
+            return False
+
+# Для работы с Excel
+try:
+    import xlsxwriter
+    EXCEL_AVAILABLE = True
+except ImportError:
+    EXCEL_AVAILABLE = False
+    print("WARNING: xlsxwriter module not found. Excel export feature will be disabled.")
+
+# Добавление глобальной переменной для хранения текущего вида отображения
+# true - карточки, false - таблица
+view_as_cards = False
+
+def connect_to_db():
+    try:
+        # Database configuration
+        db_config = {
+            "dbname": "railway",
+            "user": "postgres",
+            "password": "dfFudMqjdNUrRDNEvvTVVvBaNztZfxaP",
+            "host": "autorack.proxy.rlwy.net",
+            "port": "33741"
+        }
+        
+        # Log connection attempt
+        print(f"Attempting to connect to database at {db_config['host']}:{db_config['port']}")
+        
+        # Добавляем таймаут для подключения
+        import time
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                print(f"Попытка подключения {retry_count + 1} из {max_retries}")
+                # Create connection with timeout
+                conn = psycopg2.connect(**db_config, connect_timeout=10)
+                
+                # Test connection
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+                cursor.close()
+                
+                print("Database connection successful!")
+                return conn
+            except Exception as retry_error:
+                retry_count += 1
+                print(f"Попытка {retry_count} не удалась: {str(retry_error)}")
+                if retry_count < max_retries:
+                    print(f"Ожидание 2 секунды перед следующей попыткой...")
+                    time.sleep(2)
+                else:
+                    print("Превышено максимальное количество попыток подключения.")
+                    raise
+        
+        return None
+    except Exception as e:
+        print(f"Database connection error: {str(e)}")
+        traceback.print_exc()
+        return None
+
+
+
+def on_group_change(page, e):
+    update_students_list(page, selected_group=e.control.value)
+    page.update()
+
+def on_course_change(page, e):
+    update_students_list(page, selected_course=e.control.value)
+    page.update()
+
+def select_group_course_dialog(page):
+    try:
+        # Add debug for version and platform
+        print(f"Flet version: {ft.__version__ if hasattr(ft, '__version__') else 'Unknown'}")
+        print(f"Running platform: {ft.get_platform() if hasattr(ft, 'get_platform') else 'Unknown'}")
+        print("Opening group/course dialog...")
+        
+        # Показываем индикатор загрузки
+        loading_dialog = ft.AlertDialog(
+            content=ft.Column([
+                ft.ProgressRing(width=40, height=40, stroke_width=4),
+                ft.Text("Загрузка данных групп и курсов...", text_align=ft.TextAlign.CENTER),
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
+            modal=True
+        )
+        
+        # Открываем диалог загрузки
+        page.dialog = loading_dialog
+        loading_dialog.open = True
+        page.update()
+        
+        conn = connect_to_db()
+        if not conn:
+            # Закрываем диалог загрузки
+            loading_dialog.open = False
+            page.update()
+            
+            show_snackbar(page, t("connection_error"), is_error=True)
+            return
+            
+        cursor = conn.cursor()
+        
+        # Get distinct groups and courses
+        cursor.execute("SELECT DISTINCT group_name FROM students WHERE group_name IS NOT NULL ORDER BY group_name")
+        groups = [row[0] for row in cursor.fetchall()]
+        print(f"Found {len(groups)} groups: {groups}")
+        
+        cursor.execute("SELECT DISTINCT course_number FROM students WHERE course_number IS NOT NULL ORDER BY course_number")
+        courses = [str(row[0]) for row in cursor.fetchall()]
+        print(f"Found {len(courses)} courses: {courses}")
+        
+        cursor.close()
+        conn.close()
+        
+        # Закрываем диалог загрузки
+        loading_dialog.open = False
+        page.update()
+
+        # Упрощенные выпадающие списки
+        group_dropdown = ft.Dropdown(
+            label=t("select_group"),
+            hint_text=t("select_group_hint"),
+            options=[ft.dropdown.Option(group) for group in groups],
+            width=300,
+        )
+
+        course_dropdown = ft.Dropdown(
+            label=t("select_course"),
+            hint_text=t("select_course_hint"),
+            options=[ft.dropdown.Option(course) for course in courses],
+            width=300,
+        )
+        
+        # Упрощенное содержимое диалога
+        content = ft.Column(
+            controls=[
+                ft.Container(
+                    content=ft.Text(t("select_filters_description"), size=16),
+                    padding=10,
+                    border_radius=5,
+                    bgcolor=ft.colors.BLUE_50,
+                ),
+                ft.Container(height=15),
+                group_dropdown,
+                ft.Container(height=15),
+                course_dropdown,
+            ],
+            spacing=5,
+            width=350,
+            height=250,
+        )
+        
+        def apply_filters(e):
+            # Показываем индикатор загрузки на кнопке
+            apply_btn.disabled = True
+            apply_btn.icon = ft.icons.HOURGLASS_EMPTY
+            apply_btn.text = t("applying")
+            cancel_btn.disabled = True
+            page.update()
+            
+            print(f"Applying filters - Group: {group_dropdown.value}, Course: {course_dropdown.value}")
+            # Закрываем диалог сразу для ощущения отзывчивости
+            dialog.close()
+            
+            # Обновляем список с анимацией загрузки (она встроена в update_students_list)
+            update_students_list(
+                page,
+                selected_group=group_dropdown.value,
+                selected_course=course_dropdown.value
+            )
+            
+            # Показываем уведомление об успешном применении фильтров
+            show_snackbar(page, t("filters_applied"))
+
+        def close_dialog(e):
+            print("Closing dialog")
+            dialog.close()
+        
+        # Создаем кнопки для доступа из обработчиков
+        apply_btn = ft.ElevatedButton(
+            t("apply"),
+            icon=ft.icons.CHECK,
+            on_click=apply_filters,
+            bgcolor=ft.Colors.BLUE_600,
+            color=ft.Colors.WHITE,
+        )
+        
+        cancel_btn = ft.ElevatedButton(
+            t("cancel"),
+            icon=ft.icons.CANCEL,
+            on_click=close_dialog,
+            bgcolor=ft.Colors.RED,
+            color=ft.Colors.WHITE,
+        )
+            
+        # Упрощенные кнопки действий
+        actions = [apply_btn, cancel_btn]
+        
+        # Create and open the custom dialog
+        dialog = CustomDialog(
+            page=page,
+            title=t("filters"),
+            content=content,
+            actions=actions
+        )
+        
+        dialog.open()
+        print("Custom group/course dialog should be visible now")
+        
+    except Exception as e:
+        # Закрываем диалог загрузки, если он открыт
+        if hasattr(page, 'dialog') and page.dialog == loading_dialog:
+            loading_dialog.open = False
+            page.update()
+            
+        print(f"DEBUG - Error in filter dialog: {e}")  # Debug log
+        traceback.print_exc()  # Print full traceback
+        show_snackbar(page, f"{t('loading_error')}: {str(e)}", is_error=True)
+
+def view_student_details(page, student_id):
+    # Check admin permissions
+    is_admin_user = is_admin()
+    print(f"View student details for student {student_id}, is_admin: {is_admin_user}")
+    
+    if not is_admin_user:
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text("Только администраторы могут просматривать детальную информацию студентов"),
+            open=True
+        )
+        page.update()
+        return
+        
+    # Показываем индикатор загрузки
+    loading_dialog = ft.AlertDialog(
+        content=ft.Column([
+            ft.ProgressRing(width=40, height=40, stroke_width=4),
+            ft.Text("Загрузка данных студента...", text_align=ft.TextAlign.CENTER),
+        ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
+        modal=True
+    )
+    
+    # Открываем диалог загрузки
+    page.dialog = loading_dialog
+    loading_dialog.open = True
+    page.update()
+        
+    try:
+        conn = connect_to_db()
+        if not conn:
+            # Закрываем диалог загрузки
+            loading_dialog.open = False
+            page.update()
+            
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text("Ошибка подключения к базе данных"),
+                open=True
+            )
+            page.update()
+            return
+            
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM students WHERE id = %s", (student_id,))
+        student = cursor.fetchone()
+        
+        cursor.close()
+        conn.close()
+        
+        # Закрываем диалог загрузки
+        loading_dialog.open = False
+        page.update()
+        
+        if student:
+            # Создаем словарь с полями и их значениями для лучшей читаемости
+            field_mappings = [
+                ("full_name", t("full_name"), student[1] or ""),
+                ("birth_date", t("birth_date"), str(student[2]) if student[2] else ""),
+                ("school", t("school"), student[3] or ""),
+                ("region", t("region"), student[4] or ""),
+                ("district", t("district"), student[5] or ""),
+                ("city", t("city"), student[6] or ""),
+                ("address", t("address"), student[7] or ""),
+                ("parents_name", t("parents_name"), student[8] or ""),
+                ("factual_address", t("factual_address"), student[9] or ""),
+                ("hobbies", t("hobbies"), student[10] or ""),
+                ("nationality", t("nationality"), student[11] or ""),
+                ("citizenship", t("citizenship"), student[12] or ""),
+                ("residence_permit", t("residence_permit"), student[13] or ""),
+                ("document_expiry", t("document_expiry"), str(student[14]) if student[14] else ""),
+                ("social_status", t("social_status"), student[15] or ""),
+                ("orphan_status", t("orphan_status"), "✓" if student[16] else "✗"),
+                ("disability_status", t("disability_status"), "✓" if student[17] else "✗"),
+                ("family_support", t("family_support"), student[18] or ""),
+                ("previous_residence", t("previous_residence"), student[19] or ""),
+                ("current_residence", t("current_residence"), student[20] or ""),
+                ("housing_type", t("housing_type"), student[21] or ""),
+                ("parents_education", t("parents_education"), student[22] or ""),
+                ("social_help", t("social_help"), student[23] or ""),
+                ("expelled_status", t("expelled_status"), "✓" if student[24] else "✗"),
+                ("order_number", t("order_number"), student[25] or ""),
+                ("group", t("group"), student[27] or t("no_data")),
+                ("course", t("course"), str(student[28]) if student[28] else t("no_data")),
+            ]
+            
+            # Создаем контейнеры для каждого поля
+            fields_containers = []
+            for field_id, field_name, field_value in field_mappings:
+                fields_containers.append(
+                    ft.Container(
+                        content=ft.Column([
+                            ft.Text(field_name, weight=ft.FontWeight.BOLD, size=14, color=ft.colors.BLUE_700),
+                            ft.Text(field_value, selectable=True),
+                        ]),
+                        padding=10,
+                        border_radius=8,
+                        bgcolor=ft.colors.BLUE_50,
+                        margin=ft.margin.only(bottom=5),
+                    )
+                )
+            
+            # Создаем скроллируемое окно с содержимым
+            content = ft.ListView(
+                controls=fields_containers,
+                spacing=5,
+                height=500,  # Увеличиваем высоту для размещения большего количества данных
+                auto_scroll=False,  # Отключаем автоскролл
+                padding=10,
+            )
+            
+            # Кнопка прокрутки вверх
+            scroll_to_top_btn = ft.IconButton(
+                icon=ft.icons.ARROW_UPWARD,
+                tooltip="Прокрутить вверх",
+                icon_color=ft.colors.BLUE_400,
+                on_click=lambda e: content.scroll_to(offset=0, duration=300),
+            )
+            
+            # Кнопка редактирования в диалоге просмотра
+            edit_btn = ft.IconButton(
+                icon=ft.icons.EDIT,
+                tooltip=t("edit"),
+                icon_color=ft.colors.ORANGE_400,
+                on_click=lambda e: edit_from_view(e, student_id, dialog),
+            )
+            
+            # Объединяем контент и кнопки
+            view_content = ft.Column([
+                content,
+                ft.Row([
+                    scroll_to_top_btn,
+                    edit_btn
+                ], alignment=ft.MainAxisAlignment.END),
+            ])
+            
+            def close_dialog(e):
+                dialog.close()
+                page.update()
+                
+            # Create actions
+            actions = [
+                ft.ElevatedButton(t("close"), on_click=close_dialog)
+            ]
+            
+            # Create and open the dialog
+            dialog = CustomDialog(
+                page=page,
+                title=f"{t('student_details')}: {student[1]}",
+                content=view_content,
+                actions=actions
+            )
+            
+            dialog.open()
+            # Сброс позиции скролла после открытия
+            content.scroll_to(offset=0)
+            page.update()
+            
+            print(f"View details dialog opened for student {student_id}")
+        else:
+            page.snack_bar = ft.SnackBar(
+                content=ft.Text("Студент не найден"),
+                open=True
+            )
+            page.update()
+    except Exception as e:
+        # Закрываем диалог загрузки, если он открыт
+        if hasattr(page, 'dialog') and page.dialog == loading_dialog:
+            loading_dialog.open = False
+            page.update()
+            
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text(f"Ошибка просмотра: {str(e)}"),
+            open=True
+        )
+        page.update()
+
+# Функция для редактирования студента из окна просмотра
+def edit_from_view(e, student_id, view_dialog):
+    # Получаем объект страницы из события
+    page = e.page
+    # Закрываем диалог просмотра
+    if view_dialog:
+        view_dialog.close()
+    # Открываем диалог редактирования
+    edit_student_dialog(page, student_id)
+
+def edit_student_dialog(page, student_id):
+    # Check admin permissions
+    if not is_admin():
+        show_snackbar(page, t("admin_only"), is_error=True)
+        return
+    
+    # Показать индикатор загрузки
+    loading_dialog = ft.AlertDialog(
+        title=ft.Text(t("loading"), text_align=ft.TextAlign.CENTER),
+        content=ft.Column([
+            ft.ProgressRing(),
+            ft.Text(t("loading_student_data"), text_align=ft.TextAlign.CENTER)
+        ], alignment=ft.MainAxisAlignment.CENTER),
+    )
+    page.dialog = loading_dialog
+    loading_dialog.open = True
+    page.update()
+    
+    try:
+        # Загружаем данные студента из БД
+        conn = connect_to_db()
+        if not conn:
+            loading_dialog.open = False
+            page.update()
+            show_snackbar(page, t("connection_error"), is_error=True)
+            return
+            
+        cursor = conn.cursor()
+        
+        # Получаем все данные студента
+        cursor.execute(
+            """
+            SELECT * FROM students
+            WHERE id = %s
+            """,
+            (student_id,)
+        )
+        
+        student_data = cursor.fetchone()
+        
+        if not student_data:
+            cursor.close()
+            conn.close()
+            loading_dialog.open = False
+            page.update()
+            show_snackbar(page, t("student_not_found"), is_error=True)
+            return
+        
+        # Загружаем список групп
+        cursor.execute("SELECT DISTINCT group_name FROM students ORDER BY group_name")
+        groups = [row[0] for row in cursor.fetchall()]
+        
+        # Загружаем список курсов
+        cursor.execute("SELECT DISTINCT course_number FROM students ORDER BY course_number")
+        courses = [str(row[0]) for row in cursor.fetchall()]
+        
+        cursor.close()
+        conn.close()
+        
+        # Создаем поля формы
+        full_name_field = ft.TextField(
+            label=t("full_name"), 
+            value=student_data[1] or "",
+            autofocus=True,
+            expand=True,
+            max_length=100
+        )
+        
+        # Создаем скрытое поле для хранения даты в формате для БД
+        hidden_date_field = ft.TextField(
+            visible=False,
+            value=student_data[2].strftime("%Y-%m-%d") if student_data[2] else ""
+        )
+        
+        # Создаем функцию для обработки изменения даты
+        def handle_date_change(date):
+            if date:
+                # Устанавливаем значение для скрытого поля с датой (для сохранения в БД)
+                hidden_date_field.value = date.strftime("%Y-%m-%d")
+            else:
+                hidden_date_field.value = ""
+            page.update()
+        
+        # Заменяем date_picker на реализацию с выпадающими списками
+        date_selector, get_date = create_date_selector(page, student_data[2], handle_date_change)
+        
+        school_field = ft.TextField(label=t("school"), value=student_data[3] or "", expand=True, max_length=100)
+        region_field = ft.TextField(label=t("region"), value=student_data[4] or "", expand=True, max_length=100)
+        district_field = ft.TextField(label=t("district"), value=student_data[5] or "", expand=True, max_length=100)
+        city_field = ft.TextField(label=t("city"), value=student_data[6] or "", expand=True, max_length=100)
+        address_field = ft.TextField(label=t("address"), value=student_data[7] or "", expand=True, max_length=100)
+        parents_name_field = ft.TextField(label=t("parents_name"), value=student_data[8] or "", expand=True, max_length=100)
+        factual_address_field = ft.TextField(label=t("factual_address"), value=student_data[9] or "", expand=True, max_length=100)
+        hobbies_field = ft.TextField(label=t("hobbies"), value=student_data[10] or "", expand=True, max_length=100)
+        
+        group_dropdown = ft.Dropdown(
+            label=t("group"),
+            options=[ft.dropdown.Option(group) for group in groups],
+            value=student_data[27] or "",
+            expand=True
+        )
+        
+        course_dropdown = ft.Dropdown(
+            label=t("course"),
+            options=[ft.dropdown.Option(course) for course in courses],
+            value=str(student_data[28]) if student_data[28] is not None else "",
+            expand=True
+        )
+        
+        def save_changes(e):
+            # Валидация
+            if not full_name_field.value or not full_name_field.value.strip():
+                show_snackbar(page, t("error_empty_name"), is_error=True)
+                return
+                
+            # Получаем дату из скрытого поля
+            if not hidden_date_field.value:
+                show_snackbar(page, t("error_empty_birth_date"), is_error=True)
+                return
+            
+            # Проверяем формат даты
+            try:
+                birth_date = datetime.datetime.strptime(hidden_date_field.value, "%Y-%m-%d").date()
+                today = datetime.date.today()
+                
+                # Дополнительная проверка, если пользователь редактировал поле напрямую
+                if birth_date > today:
+                    show_snackbar(page, t("error_future_date"), is_error=True)
+                    return
+                    
+                age = (today - birth_date).days // 365
+                if age < 10:
+                    show_snackbar(page, t("error_too_young"), is_error=True)
+                    return
+            except ValueError:
+                show_snackbar(page, t("error_invalid_date_format"), is_error=True)
+                return
+                
+            if not school_field.value or not school_field.value.strip():
+                show_snackbar(page, t("error_empty_school"), is_error=True)
+                return
+                
+            if not region_field.value or not region_field.value.strip():
+                show_snackbar(page, t("error_empty_region"), is_error=True)
+                return
+                
+            if not city_field.value or not city_field.value.strip():
+                show_snackbar(page, t("error_empty_city"), is_error=True)
+                return
+                
+            if not group_dropdown.value:
+                show_snackbar(page, t("error_empty_group"), is_error=True)
+                return
+                
+            if not course_dropdown.value:
+                show_snackbar(page, t("error_empty_course"), is_error=True)
+                return
+            
+            # Показываем индикатор сохранения
+            saving_dialog = ft.AlertDialog(
+                title=ft.Text(t("saving"), text_align=ft.TextAlign.CENTER),
+                content=ft.Column([
+                    ft.ProgressRing(),
+                    ft.Text(t("saving_student_data"), text_align=ft.TextAlign.CENTER)
+                ], alignment=ft.MainAxisAlignment.CENTER),
+            )
+            page.dialog = saving_dialog
+            saving_dialog.open = True
+            page.update()
+            
+            try:
+                conn = connect_to_db()
+                if not conn:
+                    saving_dialog.open = False
+                    page.update()
+                    show_snackbar(page, t("connection_error"), is_error=True)
+                    return
+                    
+                cursor = conn.cursor()
+                
+                # Обновляем данные студента
+                cursor.execute(
+                    """
+                    UPDATE students
+                    SET full_name = %s,
+                        date_of_birth = %s,
+                        origin_school = %s,
+                        region = %s,
+                        district = %s,
+                        city = %s,
+                        address = %s, 
+                        parents_name = %s,
+                        factual_address = %s,
+                        hobbies = %s,
+                        group_name = %s,
+                        course_number = %s
+                    WHERE id = %s
+                    """,
+                    (
+                        full_name_field.value.strip(),
+                        hidden_date_field.value,
+                        school_field.value.strip(),
+                        region_field.value.strip(),
+                        district_field.value.strip() if district_field.value else None,
+                        city_field.value.strip(),
+                        address_field.value.strip() if address_field.value else None,
+                        parents_name_field.value.strip() if parents_name_field.value else None,
+                        factual_address_field.value.strip() if factual_address_field.value else None,
+                        hobbies_field.value.strip() if hobbies_field.value else None,
+                        group_dropdown.value,
+                        int(course_dropdown.value),
+                        student_id
+                    )
+                )
+                
+                conn.commit()
+                cursor.close()
+                conn.close()
+                
+                # Закрываем диалог редактирования
+                dialog.close()
+                
+                # Обновляем список студентов
+                update_students_list(page)
+                
+                show_snackbar(page, t("student_updated"))
+                
+            except Exception as e:
+                print(f"Error saving student data: {e}")
+                traceback.print_exc()
+                show_snackbar(page, f"{t('error_updating_student')}: {str(e)}", is_error=True)
+            finally:
+                saving_dialog.open = False
+                page.update()
+        
+        def close_dialog(e):
+            dialog.close()
+            page.update()
+        
+        # Создаем основные поля
+        basic_fields = [
+            full_name_field,
+            ft.Column([
+                ft.Text(t("birth_date"), size=14, weight=ft.FontWeight.BOLD),
+                date_selector,
+                hidden_date_field,  # Скрытое поле для хранения даты
+            ], spacing=5),
+            school_field,
+            region_field,
+            district_field,
+            city_field,
+        ]
+        
+        # Дополнительные поля
+        additional_fields = [
+            address_field,
+            parents_name_field,
+            factual_address_field,
+            hobbies_field,
+        ]
+        
+        # Еще больше дополнительных полей
+        more_fields = [
+            nationality_field,
+            citizenship_field,
+            residence_permit_field,
+            document_expiry_field,
+            social_status_field,
+            orphan_status_field,
+            disability_status_field,
+            family_support_field,
+        ]
+        
+        # Поля про проживание
+        residence_fields = [
+            previous_residence_field,
+            current_residence_field,
+            housing_type_field,
+            parents_education_field,
+            social_help_field,
+            expelled_status_field,
+            order_number_field,
+        ]
+        
+        # Группа и курс
+        group_course_fields = [
+            ft.Row([
+                group_dropdown,
+                course_dropdown,
+            ], spacing=10)
+        ]
+        
+        # Создаем вкладки для организации данных
+        tabs = ft.Tabs(
+            selected_index=0,
+            animation_duration=300,
+            tabs=[
+                ft.Tab(
+                    text=t("basic_info"),
+                    content=ft.Column(basic_fields, spacing=10, scroll=ft.ScrollMode.AUTO)
+                ),
+                ft.Tab(
+                    text=t("additional_info"),
+                    content=ft.Column(additional_fields, spacing=10, scroll=ft.ScrollMode.AUTO)
+                ),
+                ft.Tab(
+                    text=t("more_info"),
+                    content=ft.Column(more_fields, spacing=10, scroll=ft.ScrollMode.AUTO)
+                ),
+                ft.Tab(
+                    text=t("residence_info"),
+                    content=ft.Column(residence_fields, spacing=10, scroll=ft.ScrollMode.AUTO)
+                ),
+                ft.Tab(
+                    text=t("group_course"),
+                    content=ft.Column(group_course_fields, spacing=10, scroll=ft.ScrollMode.AUTO)
+                ),
+            ],
+            height=450,
+            expand=True,
+        )
+        
+        # Создаем кнопки действий
+        dialog_actions = [
+            ft.TextButton(t("cancel"), on_click=close_dialog),
+            ft.ElevatedButton(
+                text=t("save"),
+                bgcolor=ft.colors.BLUE,
+                color=ft.colors.WHITE,
+                on_click=save_changes,
+            ),
+        ]
+        
+        # Создаем диалог с помощью CustomDialog вместо AlertDialog
+        dialog = CustomDialog(
+            page=page,
+            title=t("edit_student"),
+            content=tabs,
+            actions=dialog_actions
+        )
+        
+        # Закрываем диалог загрузки и показываем диалог редактирования
+        loading_dialog.open = False
+        page.update()
+        dialog.open()
+        
+    except Exception as e:
+        print(f"Error creating edit dialog: {e}")
+        traceback.print_exc()
+        loading_dialog.open = False
+        page.update()
+        show_snackbar(page, f"{t('error_loading_dialog')}: {str(e)}", is_error=True)
+
+def delete_student(page, student_id):
+    # Check admin permissions
+    is_admin_user = is_admin()
+    print(f"Delete student dialog for student {student_id}, is_admin: {is_admin_user}")
+    
+    if not is_admin_user:
+        show_snackbar(page, t("admin_only"), is_error=True)
+        return
+        
+    # Create dialog content
+    content = ft.Text(t("delete_confirm_message"))
+    
+    def confirm_delete(e):
+        # Показываем индикатор загрузки на кнопке
+        yes_btn.disabled = True
+        yes_btn.icon = ft.icons.HOURGLASS_EMPTY
+        yes_btn.text = t("deleting")
+        no_btn.disabled = True
+        page.update()
+        
+        try:
+            conn = connect_to_db()
+            if not conn:
+                # Восстанавливаем кнопки
+                yes_btn.disabled = False
+                yes_btn.icon = ft.icons.CHECK
+                yes_btn.text = t("yes")
+                no_btn.disabled = False
+                page.update()
+                
+                show_snackbar(page, t("connection_error"), is_error=True)
+                return
+                
+            cursor = conn.cursor()
+            
+            cursor.execute("DELETE FROM students WHERE id = %s", (student_id,))
+            conn.commit()
+            
+            cursor.close()
+            conn.close()
+            
+            show_snackbar(page, t("delete_success"))
+            
+            # Close dialog
+            dialog.close()
+            
+            update_students_list(page)
+            
+        except Exception as ex:
+            # Восстанавливаем кнопки
+            yes_btn.disabled = False
+            yes_btn.icon = ft.icons.CHECK
+            yes_btn.text = t("yes")
+            no_btn.disabled = False
+            page.update()
+            
+            show_snackbar(page, f"{t('delete_error')}: {str(ex)}", is_error=True)
+    
+    def close_dialog(e):
+        dialog.close()
+    
+    # Создаем кнопки для доступа из обработчиков
+    yes_btn = ft.ElevatedButton(
+        t("yes"),
+        icon=ft.icons.CHECK,
+        on_click=confirm_delete,
+        bgcolor=ft.Colors.RED,
+        color=ft.Colors.WHITE,
+    )
+    
+    no_btn = ft.ElevatedButton(
+        t("no"),
+        icon=ft.icons.CANCEL,
+        on_click=close_dialog,
+        bgcolor=ft.Colors.BLUE_600,
+        color=ft.Colors.WHITE,
+    )
+    
+    # Упрощенные кнопки действий
+    actions = [yes_btn, no_btn]
+    
+    # Create and open the dialog
+    dialog = CustomDialog(
+        page=page,
+        title=t("confirm_delete"),
+        content=content,
+        actions=actions
+    )
+    
+    dialog.open()
+    print(f"Delete confirmation dialog opened for student {student_id}")
+
+def create_action_buttons(student_id, page):
+    is_admin_user = is_admin()
+    print(f"Creating action buttons for student {student_id}, is_admin: {is_admin_user}")
+    
+    buttons = []
+    
+    if is_admin_user:
+        print("Adding view, edit and delete buttons for admin")
+        
+        # Создаем кнопку просмотра
+        view_btn = ft.IconButton(
+            icon=ft.icons.VISIBILITY,
+            tooltip=t("view"),
+            icon_color=ft.Colors.BLUE_600,
+            icon_size=18,
+            on_click=lambda e, sid=student_id: view_student_details(page, sid)
+        )
+        
+        # Создаем кнопку редактирования
+        edit_btn = ft.IconButton(
+            icon=ft.icons.EDIT,
+            tooltip=t("edit"),
+            icon_color=ft.Colors.GREEN_600,
+            icon_size=18,
+            on_click=lambda e, sid=student_id: edit_student_dialog(page, sid)
+        )
+        
+        # Создаем кнопку удаления
+        delete_btn = ft.IconButton(
+            icon=ft.icons.DELETE,
+            tooltip=t("delete"),
+            icon_color=ft.Colors.RED,
+            icon_size=18,
+            on_click=lambda e, sid=student_id: delete_student(page, sid)
+        )
+        
+        buttons = [view_btn, edit_btn, delete_btn]
+    
+    return buttons
+
+def close_dialog(page):
+    """Закрывает открытый диалог на странице."""
+    if hasattr(page, 'dialog') and page.dialog:
+        page.dialog.open = False
+        page.update()
+
+def toggle_view(page, e=None):
+    """Переключает вид отображения между карточками и таблицей."""
+    global view_as_cards
+    view_as_cards = not view_as_cards
+    update_students_list(page)
+
+def update_students_list(page, search_query=None, selected_group=None, selected_course=None):
+    global content
+    print("Запуск update_students_list...")
+    try:
+        # Очищаем содержимое и добавляем индикатор загрузки
+        content.controls.clear()
+        
+        loading_indicator = ft.Column(
+            [
+                ft.ProgressRing(width=40, height=40, stroke_width=4),
+                ft.Text("Загрузка данных...", size=14, color=ft.colors.BLUE_400),
+            ],
+            alignment=ft.MainAxisAlignment.CENTER,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+        
+        content.controls.append(
+            ft.Container(
+                content=loading_indicator,
+                alignment=ft.alignment.center,
+                expand=True,
+            )
+        )
+        print("Индикатор загрузки добавлен")
+        page.update()
+        
+        # Подключение к БД и получение данных
+        print("Пытаемся подключиться к базе данных...")
+        conn = connect_to_db()
+        if not conn:
+            print("ОШИБКА: Не удалось подключиться к базе данных")
+            content.controls.clear()
+            content.controls.append(
+                ft.Container(
+                    content=ft.Column([
+                        ft.Icon(ft.icons.ERROR_OUTLINE, size=40, color=ft.colors.RED),
+                        ft.Text("Ошибка подключения к базе данных", color="red", size=16, text_align=ft.TextAlign.CENTER),
+                        ft.ElevatedButton(
+                            "Повторить попытку",
+                            on_click=lambda e: update_students_list(page, search_query, selected_group, selected_course),
+                            bgcolor=ft.colors.BLUE_400
+                        )
+                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
+                    alignment=ft.alignment.center,
+                    margin=20,
+                    padding=20,
+                    border_radius=8,
+                    border=ft.border.all(1, ft.colors.RED_100),
+                )
+            )
+            page.update()
+            return
+        
+        print("Подключение к базе данных успешно")
+        cursor = conn.cursor()
+
+        # Построение запроса с фильтрами
+        query = """
+            SELECT id, full_name, date_of_birth, origin_school, region, district, city, group_name, course_number
+            FROM students
+            WHERE 1=1
+        """
+        params = []
+
+        if search_query and search_query.strip():
+            query += """ 
+                AND (
+                    LOWER(full_name) LIKE LOWER(%s) 
+                    OR LOWER(origin_school) LIKE LOWER(%s)
+                    OR LOWER(city) LIKE LOWER(%s)
+                    OR LOWER(region) LIKE LOWER(%s)
+                    OR LOWER(district) LIKE LOWER(%s)
+                    OR CAST(group_name AS TEXT) LIKE LOWER(%s)
+                )
+            """
+            search_param = f"%{search_query.strip()}%"
+            params.extend([search_param] * 6)
+
+        if selected_group:
+            query += " AND LOWER(group_name) = LOWER(%s)"
+            params.append(selected_group)
+
+        if selected_course:
+            query += " AND CAST(course_number AS TEXT) = %s"
+            params.append(str(selected_course))
+
+        query += " ORDER BY full_name"
+
+        print(f"DEBUG - Executing query: {query} with params: {params}")
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        print(f"DEBUG - Found {len(rows)} students")
+        
+        content.controls.clear()
+
+        if not rows:
+            content.controls.append(
+                ft.Container(
+                    content=ft.Column([
+                        ft.Icon(ft.icons.SEARCH_OFF, size=40, color=ft.colors.BLUE_400),
+                        ft.Text("Студенттер табылмады", size=16, text_align=ft.TextAlign.CENTER),
+                    ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
+                    alignment=ft.alignment.center,
+                    margin=20,
+                    padding=20,
+                    border_radius=8,
+                    border=ft.border.all(1, ft.colors.BLUE_100),
+                )
+            )
+            print("Отображаем сообщение 'Студенттер табылмады'")
+        else:
+            print(f"Создаем список с {len(rows)} студентами")
+            
+            # Отображение в виде таблицы
+            # Создаем заголовок таблицы
+            headers = [
+                ft.Container(
+                    content=ft.Text(t("full_name"), weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                    bgcolor=ft.colors.BLUE_600,
+                    padding=8,
+                    alignment=ft.alignment.center,
+                    width=200,
+                ),
+                ft.Container(
+                    content=ft.Text(t("birth_date"), weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                    bgcolor=ft.colors.BLUE_600,
+                    padding=8,
+                    alignment=ft.alignment.center,
+                    width=100,
+                ),
+                ft.Container(
+                    content=ft.Text(t("school"), weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                    bgcolor=ft.colors.BLUE_600,
+                    padding=8,
+                    alignment=ft.alignment.center,
+                    width=150,
+                ),
+                ft.Container(
+                    content=ft.Text(t("region"), weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                    bgcolor=ft.colors.BLUE_600,
+                    padding=8,
+                    alignment=ft.alignment.center,
+                    width=120,
+                ),
+                ft.Container(
+                    content=ft.Text(t("city"), weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                    bgcolor=ft.colors.BLUE_600,
+                    padding=8,
+                    alignment=ft.alignment.center,
+                    width=120,
+                ),
+                ft.Container(
+                    content=ft.Text(t("group"), weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                    bgcolor=ft.colors.BLUE_600,
+                    padding=8,
+                    alignment=ft.alignment.center,
+                    width=100,
+                ),
+                ft.Container(
+                    content=ft.Text(t("actions"), weight=ft.FontWeight.BOLD, color=ft.colors.WHITE),
+                    bgcolor=ft.colors.BLUE_600,
+                    padding=8,
+                    alignment=ft.alignment.center,
+                    width=160,
+                ),
+            ]
+            
+            # Создаем строки данных
+            table_rows = []
+            for i, row in enumerate(rows):
+                bg_color = ft.colors.BLUE_50 if i % 2 == 0 else ft.colors.WHITE
+                
+                student_id = row[0]
+                full_name = str(row[1] or '')
+                birth_date = str(row[2] or '')
+                school = str(row[3] or '')
+                region = str(row[4] or '')
+                city = str(row[6] or '')
+                group = str(row[7] or '')
+                
+                cells = [
+                    ft.Container(
+                        content=ft.Text(
+                            full_name,
+                            overflow=ft.TextOverflow.ELLIPSIS,
+                            tooltip=full_name,
+                            color=ft.colors.BLACK,
+                        ),
+                        bgcolor=bg_color,
+                        padding=8,
+                        width=200,
+                    ),
+                    ft.Container(
+                        content=ft.Text(birth_date, color=ft.colors.BLACK),
+                        bgcolor=bg_color,
+                        padding=8,
+                        width=100,
+                    ),
+                    ft.Container(
+                        content=ft.Text(school, color=ft.colors.BLACK),
+                        bgcolor=bg_color,
+                        padding=8,
+                        width=150,
+                    ),
+                    ft.Container(
+                        content=ft.Text(region, color=ft.colors.BLACK),
+                        bgcolor=bg_color,
+                        padding=8,
+                        width=120,
+                    ),
+                    ft.Container(
+                        content=ft.Text(city, color=ft.colors.BLACK),
+                        bgcolor=bg_color,
+                        padding=8,
+                        width=120,
+                    ),
+                    ft.Container(
+                        content=ft.Text(group, color=ft.colors.BLACK),
+                        bgcolor=bg_color,
+                        padding=8,
+                        width=100,
+                    ),
+                    ft.Container(
+                        content=ft.Row(
+                            controls=create_action_buttons(student_id, page),
+                            alignment=ft.MainAxisAlignment.CENTER,
+                            spacing=5,
+                        ),
+                        bgcolor=bg_color,
+                        padding=8,
+                        width=160,
+                    ),
+                ]
+                
+                table_rows.append(ft.Row(cells))
+                table_rows.append(ft.Divider(height=1, color=ft.colors.GREY_300))
+            
+            # Создаем таблицу
+            custom_table = ft.Column(
+                controls=[
+                    ft.Row(headers),
+                    *table_rows,
+                ],
+                spacing=0,
+                scroll=ft.ScrollMode.AUTO,
+            )
+            
+            # Контейнер для таблицы
+            data_container = ft.Container(
+                content=custom_table,
+                expand=True,
+                border=ft.border.all(1, ft.colors.GREY_400),
+                border_radius=10,
+                padding=10,
+            )
+            
+            content.controls.append(data_container)
+            print("Список студентов создан и добавлен на страницу")
+
+        print("Закрываем соединение с БД")
+        cursor.close()
+        conn.close()
+        print("Обновление интерфейса завершено")
+
+    except Exception as e:
+        print(f"DEBUG - Error updating students list: {e}")
+        traceback.print_exc()
+        content.controls.clear()
+        content.controls.append(
+            ft.Container(
+                content=ft.Column([
+                    ft.Icon(ft.icons.ERROR_OUTLINE, size=40, color=ft.colors.RED),
+                    ft.Text(f"Ошибка загрузки данных: {str(e)}", color="red", text_align=ft.TextAlign.CENTER),
+                    ft.ElevatedButton(
+                        "Повторить попытку",
+                        on_click=lambda e: update_students_list(page, search_query, selected_group, selected_course),
+                        bgcolor=ft.colors.BLUE_400
+                    )
+                ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
+                alignment=ft.alignment.center,
+                margin=20,
+                padding=20,
+                border_radius=8,
+                border=ft.border.all(1, ft.colors.RED_100),
+            )
+        )
+    finally:
+        print("Финальное обновление страницы")
+        page.update()
+        print("Функция update_students_list завершена")
+
+class CustomDialog:
+    def __init__(self, page, title, content, actions=None):
+        self.page = page
+        self.visible = False
+        
+        # Исправленный дизайн диалогового окна (без border_radius в Card)
+        self.dialog = ft.Container(
+            width=page.width if hasattr(page, 'width') else None,
+            height=page.height if hasattr(page, 'height') else None,
+            expand=True,  # Expand to fill available space
+            bgcolor=ft.colors.with_opacity(0.7, ft.colors.BLACK),  # Translucent background
+            alignment=ft.alignment.center,  # Center the card
+            content=ft.Card(
+                elevation=10,  # Тень для лучшей видимости
+                content=ft.Container(
+                    padding=20,
+                    border_radius=10,  # Перенесли border_radius сюда
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Icon(ft.icons.INFO_OUTLINE, color=ft.colors.BLUE),
+                            ft.Text(title, size=20, weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_800),
+                        ], spacing=10),
+                        ft.Divider(height=10, thickness=1, color=ft.colors.BLUE_100),
+                        content,
+                        ft.Divider(height=10, thickness=1, color=ft.colors.BLUE_100),
+                        ft.Container(
+                            content=ft.Row(
+                                actions or [],
+                                alignment=ft.MainAxisAlignment.END,
+                                spacing=10,
+                            ),
+                            padding=ft.padding.only(top=10)
+                        )
+                    ], spacing=10),
+                ),
+                width=720,
+            ),
+        )
+        
+    def open(self):
+        self.visible = True
+        self.page.overlay.append(self.dialog)
+        self.page.update()
+        
+    def close(self):
+        self.visible = False
+        try:
+            self.page.overlay.remove(self.dialog)
+            self.page.update()
+        except:
+            print("Error removing dialog from overlay")
+            traceback.print_exc()
+
+def students_screen(page):
+    global content
+    
+    is_admin_user = is_admin()
+    print(f"Loading students screen, is_admin: {is_admin_user}")
+    
+    # Create the content container first
+    content = ft.Column(
+        controls=[],
+        alignment=ft.MainAxisAlignment.START,
+        expand=True,
+    )
+    
+    # Создаем индикатор загрузки
+    loading_container = ft.Container(
+        content=ft.Column([
+            ft.ProgressRing(width=40, height=40, stroke_width=4),
+            ft.Text("Загрузка данных...", size=14, color=ft.colors.BLUE_400),
+        ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
+        alignment=ft.alignment.center,
+        expand=True,
+    )
+    
+    search_field = ft.TextField(
+        label=t("search"),
+        hint_text=t("search_hint"),
+        width=350,
+        border_radius=ft.border_radius.all(8),
+        prefix_icon=ft.icons.SEARCH,
+    )
+
+    def apply_search(e):
+        # Отключаем кнопку на время поиска
+        search_btn.disabled = True
+        search_btn.icon = ft.icons.HOURGLASS_EMPTY
+        page.update()
+        
+        print(f"Searching for: {search_field.value}")
+        update_students_list(page, search_query=search_field.value)
+        
+        # Восстанавливаем кнопку после завершения поиска
+        search_btn.disabled = False
+        search_btn.icon = ft.icons.SEARCH
+        page.update()
+
+    def reset_filter(e):
+        # Отключаем кнопку на время сброса
+        reset_filter_btn.disabled = True
+        reset_filter_btn.icon = ft.icons.HOURGLASS_EMPTY
+        page.update()
+        
+        print("Resetting filters")
+        search_field.value = ""
+        update_students_list(page)
+        show_snackbar(page, t("filters_reset"))
+        
+        # Восстанавливаем кнопку после завершения
+        reset_filter_btn.disabled = False
+        reset_filter_btn.icon = ft.icons.CLEAR
+        page.update()
+
+    def handle_add_student(e):
+        print("Add student button clicked")
+        add_student_dialog(page)
+        
+    def handle_select_group(e):
+        print("Select group button clicked")
+        select_group_course_dialog(page)
+        
+    def handle_export_excel(e):
+        print("Export to Excel button clicked")
+        
+        # Проверяем доступность xlsxwriter и пытаемся установить, если не установлен
+        if not EXCEL_AVAILABLE and not ensure_xlsxwriter_installed():
+            show_snackbar(page, t("excel_module_error"), is_error=True)
+            return
+        
+        # Показываем индикатор загрузки
+        loading_dialog = create_loading_dialog(page, t("loading_data"))
+        page.dialog = loading_dialog
+        loading_dialog.open = True
+        page.update()
+        
+        # Запускаем загрузку всех данных для экспорта
+        try:
+            conn = connect_to_db()
+            cursor = conn.cursor()
+            
+            # Используем тот же запрос что и для отображения, но с фильтрами
+            query = """
+                SELECT * FROM students
+                WHERE 1=1
+            """
+            params = []
+            
+            if search_field.value and search_field.value.strip():
+                query += """ 
+                    AND (
+                        LOWER(full_name) LIKE LOWER(%s) 
+                        OR LOWER(origin_school) LIKE LOWER(%s)
+                        OR LOWER(city) LIKE LOWER(%s)
+                        OR LOWER(region) LIKE LOWER(%s)
+                        OR LOWER(district) LIKE LOWER(%s)
+                        OR CAST(group_name AS TEXT) LIKE LOWER(%s)
+                    )
+                """
+                search_param = f"%{search_field.value.strip()}%"
+                params.extend([search_param] * 6)
+            
+            cursor.execute(query, params)
+            data = cursor.fetchall()
+            
+            cursor.close()
+            conn.close()
+            
+            # Закрываем диалог загрузки
+            loading_dialog.open = False
+            page.update()
+            
+            if data:
+                show_export_options_dialog(page, data)
+            else:
+                show_snackbar(page, "Нет данных для экспорта", is_error=True)
+            
+        except Exception as e:
+            # Закрываем диалог загрузки, если он открыт
+            if hasattr(loading_dialog, 'open') and loading_dialog.open:
+                loading_dialog.open = False
+                page.update()
+                
+            print(f"Ошибка при загрузке данных для экспорта: {e}")
+            show_snackbar(page, f"Ошибка при загрузке данных: {str(e)}", is_error=True)
+    
+    # Создаем кнопки для доступа из обработчиков
+    search_btn = ft.IconButton(
+        icon=ft.icons.SEARCH,
+        tooltip=t("search"),
+        icon_color=ft.colors.WHITE,
+        bgcolor=ft.Colors.BLUE_600,
+        on_click=apply_search,
+    )
+        
+    # Вернулись к более простому стилю кнопок с иконками
+    add_student_btn = ft.IconButton(
+        icon=ft.icons.ADD,
+        tooltip=t("add_student"),
+        icon_color=ft.colors.WHITE,
+        bgcolor=ft.Colors.BLUE_600,
+        on_click=handle_add_student,
+    )
+    
+    select_group_btn = ft.IconButton(
+        icon=ft.icons.FILTER_LIST,
+        tooltip=t("select_group"),
+        icon_color=ft.colors.WHITE,
+        bgcolor=ft.Colors.BLUE_600,
+        on_click=handle_select_group,
+    )
+    
+    reset_filter_btn = ft.IconButton(
+        icon=ft.icons.CLEAR,
+        tooltip=t("reset_filter"),
+        icon_color=ft.colors.WHITE,
+        bgcolor=ft.Colors.RED,
+        on_click=reset_filter,
+    )
+    
+    # Кнопка экспорта в Excel
+    export_excel_btn = ft.IconButton(
+        icon=ft.icons.FILE_DOWNLOAD,
+        tooltip=t("export_excel"),
+        icon_color=ft.colors.WHITE,
+        bgcolor=ft.colors.GREEN,
+        on_click=handle_export_excel,
+    )
+    
+    # Basic controls for all users
+    search_row_controls = [
+        search_field,
+        search_btn,
+        add_student_btn,
+        select_group_btn,
+        export_excel_btn,
+    ]
+    
+    # Only admin can reset filters 
+    if is_admin_user:
+        search_row_controls.append(reset_filter_btn)
+    
+    search_row = ft.Row(
+        controls=search_row_controls,
+        spacing=10,
+        alignment=ft.MainAxisAlignment.START,
+    )
+    
+    # Создаем основной контейнер экрана
+    main_content = ft.Column(
+        controls=[
+            ft.Container(
+                content=search_row,
+                padding=ft.padding.all(10),
+                border_radius=10,
+                bgcolor=ft.colors.BLUE_50,
+            ),
+            ft.Divider(thickness=1, color=ft.Colors.GREY_400),
+            ft.Container(
+                content=ft.Text(
+                    "Студенттер:", 
+                    size=20, 
+                    weight=ft.FontWeight.BOLD, 
+                    color=ft.colors.BLUE_800
+                ),
+                padding=5,
+            ),
+            ft.Container(
+                content=content,
+                expand=True,
+            ),
+        ],
+        spacing=10,
+        alignment=ft.MainAxisAlignment.START,
+        expand=True,
+    )
+    
+    def initialize_students():
+        content.controls.append(loading_container)
+        page.update()
+        update_students_list(page)
+    
+    initialize_students()
+    
+    return main_content
+
+def add_student_dialog(page):
+    """Диалог для добавления нового студента с улучшенной прокруткой и загрузкой."""
+    print("Открываем диалог для добавления студента")
+    
+    # Показать индикатор загрузки при открытии диалога
+    loading_dialog = ft.AlertDialog(
+        title=ft.Text(t("loading"), text_align=ft.TextAlign.CENTER),
+        content=ft.Column([
+            ft.ProgressRing(),
+            ft.Text(t("loading_groups_courses"), text_align=ft.TextAlign.CENTER)
+        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+    )
+    page.dialog = loading_dialog
+    loading_dialog.open = True
+    page.update()
+    
+    try:
+        # Загружаем список групп
+        conn = connect_to_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT group_name FROM students ORDER BY group_name")
+        groups = [row[0] for row in cursor.fetchall()]
+        
+        # Загружаем список курсов
+        cursor.execute("SELECT DISTINCT course_number FROM students ORDER BY course_number")
+        courses = [str(row[0]) for row in cursor.fetchall()]
+        
+        cursor.close()
+        conn.close()
+        
+        # Создаем текстовые поля для ввода данных с правильной валидацией
+        full_name_field = ft.TextField(
+            label=t("full_name"), 
+            autofocus=True,
+            expand=True,
+            max_length=100
+        )
+        
+        # Создаем скрытое поле для хранения даты в формате для БД
+        hidden_date_field = ft.TextField(
+            visible=False,
+            value=""
+        )
+        
+        # Создаем функцию для обработки изменения даты
+        def handle_date_change(date):
+            if date:
+                # Устанавливаем значение для скрытого поля с датой (для сохранения в БД)
+                hidden_date_field.value = date.strftime("%Y-%m-%d")
+            else:
+                hidden_date_field.value = ""
+            page.update()
+        
+        # Заменяем date_picker на реализацию с выпадающими списками
+        date_selector, get_date = create_date_selector(page, None, handle_date_change)
+        
+        # Основные поля
+        school_field = ft.TextField(label=t("school"), expand=True, max_length=100)
+        region_field = ft.TextField(label=t("region"), expand=True, max_length=100)
+        district_field = ft.TextField(label=t("district"), expand=True, max_length=100)
+        city_field = ft.TextField(label=t("city"), expand=True, max_length=100)
+        
+        # Дополнительные поля
+        address_field = ft.TextField(label=t("address"), expand=True, max_length=100)
+        parents_name_field = ft.TextField(label=t("parents_name"), expand=True, max_length=100)
+        factual_address_field = ft.TextField(label=t("factual_address"), expand=True, max_length=100)
+        hobbies_field = ft.TextField(label=t("hobbies"), expand=True, max_length=100)
+        
+        # Еще больше дополнительных полей
+        nationality_field = ft.TextField(label=t("nationality"), expand=True, max_length=100)
+        citizenship_field = ft.TextField(label=t("citizenship"), expand=True, max_length=100)
+        residence_permit_field = ft.TextField(label=t("residence_permit"), expand=True, max_length=100)
+        document_expiry_field = ft.TextField(label=t("document_expiry"), expand=True, max_length=100)
+        social_status_field = ft.TextField(label=t("social_status"), expand=True, max_length=100)
+        orphan_status_field = ft.TextField(label=t("orphan_status"), expand=True, max_length=100)
+        disability_status_field = ft.TextField(label=t("disability_status"), expand=True, max_length=100)
+        family_support_field = ft.TextField(label=t("family_support"), expand=True, max_length=100)
+        
+        # Поля про проживание
+        previous_residence_field = ft.TextField(label=t("previous_residence"), expand=True, max_length=100)
+        current_residence_field = ft.TextField(label=t("current_residence"), expand=True, max_length=100)
+        housing_type_field = ft.TextField(label=t("housing_type"), expand=True, max_length=100)
+        parents_education_field = ft.TextField(label=t("parents_education"), expand=True, max_length=100)
+        social_help_field = ft.TextField(label=t("social_help"), expand=True, max_length=100)
+        expelled_status_field = ft.TextField(label=t("expelled_status"), expand=True, max_length=100)
+        order_number_field = ft.TextField(label=t("order_number"), expand=True, max_length=100)
+        
+        # Выпадающие списки для группы и курса
+        group_dropdown = ft.Dropdown(
+            label=t("group"),
+            options=[ft.dropdown.Option(group) for group in groups],
+            expand=True
+        )
+        
+        course_dropdown = ft.Dropdown(
+            label=t("course"),
+            options=[ft.dropdown.Option(course) for course in courses],
+            expand=True
+        )
+        
+        # Функция закрытия диалога
+        def close_add_dialog(e):
+            dialog.close()
+            page.update()
+        
+        # Функция для сохранения нового студента
+        def save_student(e):
+            print("Пытаемся сохранить студента...")
+            
+            # Валидация основных полей
+            if not full_name_field.value or not full_name_field.value.strip():
+                show_snackbar(page, t("error_empty_name"), is_error=True)
+                return
+            
+            # Получаем дату из скрытого поля
+            if not hidden_date_field.value:
+                show_snackbar(page, t("error_empty_birth_date"), is_error=True)
+                return
+            
+            # Проверка формата даты
+            try:
+                birth_date = datetime.datetime.strptime(hidden_date_field.value, "%Y-%m-%d").date()
+                today = datetime.date.today()
+                
+                # Повторная проверка, что дата не в будущем
+                if birth_date > today:
+                    show_snackbar(page, t("error_future_date"), is_error=True)
+                    return
+                    
+                # Повторная проверка, что возраст не меньше 10 лет
+                age = (today - birth_date).days // 365
+                if age < 10:
+                    show_snackbar(page, t("error_too_young"), is_error=True)
+                    return
+            except ValueError:
+                show_snackbar(page, t("error_invalid_date_format"), is_error=True)
+                return
+            
+            # Остальная валидация
+            if not school_field.value or not school_field.value.strip():
+                show_snackbar(page, t("error_empty_school"), is_error=True)
+                return
+            
+            if not region_field.value or not region_field.value.strip():
+                show_snackbar(page, t("error_empty_region"), is_error=True)
+                return
+            
+            if not city_field.value or not city_field.value.strip():
+                show_snackbar(page, t("error_empty_city"), is_error=True)
+                return
+            
+            if not group_dropdown.value:
+                show_snackbar(page, t("error_empty_group"), is_error=True)
+                return
+            
+            if not course_dropdown.value:
+                show_snackbar(page, t("error_empty_course"), is_error=True)
+                return
+            
+            # Показать диалог загрузки при сохранении
+            saving_dialog = ft.AlertDialog(
+                title=ft.Text(t("saving"), text_align=ft.TextAlign.CENTER),
+                content=ft.Column([
+                    ft.ProgressRing(),
+                    ft.Text(t("saving_student_data"), text_align=ft.TextAlign.CENTER)
+                ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            )
+            page.dialog = saving_dialog
+            saving_dialog.open = True
+            page.update()
+            
+            try:
+                # Сохраняем данные в БД
+                conn = connect_to_db()
+                cursor = conn.cursor()
+                
+                query = """
+                    INSERT INTO students (
+                        full_name, date_of_birth, origin_school, region, district, city, address, 
+                        parents_name, factual_address, hobbies, nationality, citizenship, 
+                        residence_permit, document_expiry, social_status, orphan_status, 
+                        disability_status, family_support, previous_residence, current_residence, 
+                        housing_type, parents_education, social_help, expelled_status, order_number, 
+                        group_name, course_number
+                    )
+                    VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                """
+                
+                cursor.execute(
+                    query,
+                    (
+                        full_name_field.value.strip(),
+                        hidden_date_field.value,
+                        school_field.value.strip(),
+                        region_field.value.strip(),
+                        district_field.value.strip() if district_field.value else "",
+                        city_field.value.strip(),
+                        address_field.value.strip() if address_field.value else "",
+                        parents_name_field.value.strip() if parents_name_field.value else "",
+                        factual_address_field.value.strip() if factual_address_field.value else "",
+                        hobbies_field.value.strip() if hobbies_field.value else "",
+                        nationality_field.value.strip() if nationality_field.value else "",
+                        citizenship_field.value.strip() if citizenship_field.value else "",
+                        residence_permit_field.value.strip() if residence_permit_field.value else "",
+                        document_expiry_field.value.strip() if document_expiry_field.value else "",
+                        social_status_field.value.strip() if social_status_field.value else "",
+                        orphan_status_field.value.strip() if orphan_status_field.value else "",
+                        disability_status_field.value.strip() if disability_status_field.value else "",
+                        family_support_field.value.strip() if family_support_field.value else "",
+                        previous_residence_field.value.strip() if previous_residence_field.value else "",
+                        current_residence_field.value.strip() if current_residence_field.value else "",
+                        housing_type_field.value.strip() if housing_type_field.value else "",
+                        parents_education_field.value.strip() if parents_education_field.value else "",
+                        social_help_field.value.strip() if social_help_field.value else "",
+                        expelled_status_field.value.strip() if expelled_status_field.value else "",
+                        order_number_field.value.strip() if order_number_field.value else "",
+                        group_dropdown.value,
+                        int(course_dropdown.value)
+                    )
+                )
+                
+                conn.commit()
+                cursor.close()
+                conn.close()
+                
+                # Закрываем диалог
+                dialog.close()
+                
+                # Обновляем список студентов
+                update_students_list(page)
+                
+                # Показываем уведомление об успешном добавлении
+                show_snackbar(page, t("student_added"))
+                
+            except Exception as db_error:
+                print(f"Ошибка сохранения студента: {db_error}")
+                page.dialog.open = False
+                page.update()
+                show_snackbar(page, f"{t('error_adding_student')}: {str(db_error)}", is_error=True)
+        
+        # Создаем основные поля
+        basic_fields = [
+            full_name_field,
+            ft.Column([
+                ft.Text(t("birth_date"), size=14, weight=ft.FontWeight.BOLD),
+                date_selector,
+                hidden_date_field,  # Скрытое поле для хранения даты
+            ], spacing=5),
+            school_field,
+            region_field,
+            district_field,
+            city_field,
+        ]
+        
+        # Дополнительные поля
+        additional_fields = [
+            address_field,
+            parents_name_field,
+            factual_address_field,
+            hobbies_field,
+        ]
+        
+        # Еще больше дополнительных полей
+        more_fields = [
+            nationality_field,
+            citizenship_field,
+            residence_permit_field,
+            document_expiry_field,
+            social_status_field,
+            orphan_status_field,
+            disability_status_field,
+            family_support_field,
+        ]
+        
+        # Поля про проживание
+        residence_fields = [
+            previous_residence_field,
+            current_residence_field,
+            housing_type_field,
+            parents_education_field,
+            social_help_field,
+            expelled_status_field,
+            order_number_field,
+        ]
+        
+        # Группа и курс
+        group_course_fields = [
+            ft.Row([
+                group_dropdown,
+                course_dropdown,
+            ], spacing=10)
+        ]
+        
+        # Создаем вкладки для организации данных
+        tabs = ft.Tabs(
+            selected_index=0,
+            animation_duration=300,
+            tabs=[
+                ft.Tab(
+                    text=t("basic_info"),
+                    content=ft.Column(basic_fields, spacing=10, scroll=ft.ScrollMode.AUTO)
+                ),
+                ft.Tab(
+                    text=t("additional_info"),
+                    content=ft.Column(additional_fields, spacing=10, scroll=ft.ScrollMode.AUTO)
+                ),
+                ft.Tab(
+                    text=t("more_info"),
+                    content=ft.Column(more_fields, spacing=10, scroll=ft.ScrollMode.AUTO)
+                ),
+                ft.Tab(
+                    text=t("residence_info"),
+                    content=ft.Column(residence_fields, spacing=10, scroll=ft.ScrollMode.AUTO)
+                ),
+                ft.Tab(
+                    text=t("group_course"),
+                    content=ft.Column(group_course_fields, spacing=10, scroll=ft.ScrollMode.AUTO)
+                ),
+            ],
+            height=450,
+            expand=True,
+        )
+        
+        # Создаем кнопки действий
+        dialog_actions = [
+            ft.TextButton(t("cancel"), on_click=close_add_dialog),
+            ft.ElevatedButton(
+                text=t("save"),
+                bgcolor=ft.colors.BLUE,
+                color=ft.colors.WHITE,
+                on_click=save_student,
+            ),
+        ]
+        
+        # Создаем диалог с помощью CustomDialog вместо AlertDialog
+        dialog = CustomDialog(
+            page=page,
+            title=t("add_student"),
+            content=tabs,
+            actions=dialog_actions
+        )
+        
+        # Закрываем диалог загрузки и показываем основной диалог
+        loading_dialog.open = False
+        page.update()
+        dialog.open()
+        
+    except Exception as e:
+        print(f"Ошибка при создании диалога: {e}")
+        traceback.print_exc()
+        # Закрываем диалог загрузки и показываем ошибку
+        loading_dialog.open = False
+        page.update()
+        show_snackbar(page, f"{t('error_loading_dialog')}: {str(e)}", is_error=True)
+
+# Функция для создания улучшенных уведомлений
+def show_snackbar(page, message, is_error=False):
+    """
+    Показывает улучшенное уведомление SnackBar с иконками и форматированием
+    """
+    color = ft.colors.RED if is_error else ft.colors.GREEN
+    icon = ft.icons.ERROR_OUTLINE if is_error else ft.icons.CHECK_CIRCLE
+    
+    page.snack_bar = ft.SnackBar(
+        content=ft.Row([
+            ft.Icon(icon, color=color, size=20),
+            ft.Text(message),
+        ], spacing=10),
+        bgcolor=ft.colors.with_opacity(0.9, ft.colors.BLACK),
+        duration=3000,
+        open=True
+    )
+    page.update()
+
+# Общий метод создания диалоговых форм для студентов с решением проблемы прокрутки
+def create_student_form_dialog(page, title, fields, actions, on_open=None):
+    """
+    Создает диалоговое окно с формой для студента, решая проблему с прокруткой
+    
+    Args:
+        page: Страница Flet
+        title: Заголовок диалога
+        fields: Список полей формы
+        actions: Список кнопок действий
+        on_open: Функция для выполнения при открытии диалога
+    """
+    # Создаем ListView с auto_scroll=False, чтобы предотвратить прокрутку вниз
+    form_container = ft.ListView(
+        controls=fields,
+        spacing=10,
+        height=400,
+        auto_scroll=False,  # Отключаем автоскролл
+        padding=10,
+    )
+    
+    # Кнопка прокрутки вверх
+    scroll_to_top_btn = ft.IconButton(
+        icon=ft.icons.ARROW_UPWARD,
+        tooltip="Прокрутить вверх",
+        icon_color=ft.colors.BLUE_400,
+        on_click=lambda e: form_container.scroll_to(offset=0, duration=300),
+    )
+    
+    # Создаем содержимое диалога с кнопкой прокрутки
+    content = ft.Column([
+        form_container,
+        ft.Container(
+            content=scroll_to_top_btn,
+            alignment=ft.alignment.bottom_right,
+            margin=ft.margin.only(right=10),
+        )
+    ])
+    
+    # Создаем и открываем диалог
+    dialog = CustomDialog(
+        page=page,
+        title=title,
+        content=content,
+        actions=actions
+    )
+    
+    def open_dialog():
+        dialog.open()
+        if on_open:
+            on_open()
+        # Устанавливаем скролл в начало после открытия диалога
+        form_container.scroll_to(offset=0)
+        page.update()
+    
+    # Возвращаем объект диалога и функцию для его открытия
+    return dialog, open_dialog
+
+def export_to_excel(page, data):
+    """
+    Экспортирует данные студентов в файл Excel.
+    
+    Args:
+        page: объект страницы Flet
+        data: список кортежей с данными студентов
+    """
+    if not EXCEL_AVAILABLE:
+        show_snackbar(page, t("excel_module_error"), is_error=True)
+        return
+    
+    try:
+        # Показываем диалог выбора полей для экспорта
+        show_export_options_dialog(page, data)
+    except Exception as e:
+        show_snackbar(page, f"{t('export_error')}: {str(e)}", is_error=True)
+        traceback.print_exc()
+
+def generate_excel_file(data, filename=None):
+    """Генерирует Excel файл с данными студентов."""
+    # Проверяем доступность xlsxwriter и пытаемся установить его, если он не установлен
+    global EXCEL_AVAILABLE
+    if not EXCEL_AVAILABLE:
+        success = ensure_xlsxwriter_installed()
+        if not success:
+            print("xlsxwriter module not installed and installation failed")
+            return None
+    
+    # Теперь пробуем импортировать xlsxwriter еще раз
+    try:
+        import xlsxwriter
+    except ImportError as e:
+        print(f"Failed to import xlsxwriter even after installation attempt: {e}")
+        return None
+    
+    # Проверяем входные параметры
+    if data is None or not isinstance(data, list) or len(data) == 0:
+        print("Error: No data provided for Excel export")
+        return None
+    
+    if not filename:
+        print("Error: No filename provided for Excel export")
+        # Создаем временное имя файла
+        current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.join(tempfile.gettempdir(), f"students_export_{current_date}.xlsx")
+        print(f"Using temporary filename: {filename}")
+    
+    try:
+        # Убедимся, что директория существует
+        directory = os.path.dirname(filename)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+            print(f"Created directory: {directory}")
+        
+        print(f"Creating Excel file at: {filename}")
+        
+        # Создаем Excel файл
+        workbook = xlsxwriter.Workbook(filename)
+        worksheet = workbook.add_worksheet(t("students"))
+        
+        # Дополнительная отладочная информация
+        print(f"Created workbook and worksheet successfully")
+        
+        # Добавляем стили для заголовков
+        header_format = workbook.add_format({
+            'bold': True,
+            'align': 'center',
+            'valign': 'vcenter',
+            'fg_color': '#4285F4',
+            'font_color': 'white',  # Заменяем 'color' на 'font_color'
+            'border': 1
+        })
+        
+        # Стиль для данных
+        data_format = workbook.add_format({
+            'align': 'left',
+            'valign': 'vcenter',
+            'border': 1
+        })
+        
+        # Стиль для чередования строк
+        alt_row_format = workbook.add_format({
+            'align': 'left',
+            'valign': 'vcenter',
+            'border': 1,
+            'bg_color': '#F0F8FF'  # Светло-голубой
+        })
+        
+        # Получаем заголовки столбцов из первой строки данных
+        if data and len(data) > 0 and isinstance(data[0], dict):
+            headers = list(data[0].keys())
+            print(f"Got {len(headers)} headers: {headers}")
+            
+            # Записываем заголовки
+            for col, header in enumerate(headers):
+                print(f"Writing header {header} at column {col}")
+                worksheet.write(0, col, header, header_format)
+                # Устанавливаем ширину столбца
+                worksheet.set_column(col, col, max(15, len(str(header)) + 5))
+            
+            # Записываем данные
+            for row_idx, row_data in enumerate(data):
+                # Выбираем формат в зависимости от четности строки
+                format_to_use = alt_row_format if row_idx % 2 == 0 else data_format
+                
+                for col_idx, header in enumerate(headers):
+                    value = row_data.get(header, "")
+                    worksheet.write(row_idx + 1, col_idx, value, format_to_use)
+                
+                # Дополнительная отладка для длинных данных
+                if row_idx == 0 or row_idx % 100 == 0:
+                    print(f"Processed row {row_idx}")
+        else:
+            print("Error: Invalid data format for Excel export")
+            workbook.close()
+            return None
+        
+        # Закрываем файл
+        print("Closing workbook...")
+        workbook.close()
+        print(f"Excel file successfully exported to: {filename}")
+        
+        # Проверяем, что файл создан
+        if os.path.exists(filename) and os.path.getsize(filename) > 0:
+            print(f"File exists and has size: {os.path.getsize(filename)} bytes")
+            return filename
+        else:
+            print(f"Error: Excel file not created or empty: {filename}")
+            return None
+        
+    except Exception as e:
+        print(f"Error generating Excel file: {e}")
+        traceback.print_exc()
+        # Проверяем, был ли файл создан частично и удаляем его
+        try:
+            if filename and os.path.exists(filename):
+                os.remove(filename)
+                print(f"Removed partially created file: {filename}")
+        except Exception as remove_error:
+            print(f"Error removing partial file: {remove_error}")
+        return None
+
+def show_export_options_dialog(page, data):
+    """Отображает диалог с выбором полей для экспорта в Excel."""
+    print("Opening export options dialog")
+    
+    # Определяем поля для экспорта и их названия
+    field_options = [
+        ("full_name", t("full_name")),
+        ("birth_date", t("birth_date")),
+        ("school", t("school")),
+        ("region", t("region")),
+        ("district", t("district")),
+        ("city", t("city")),
+        ("address", t("address")),
+        ("parents_name", t("parents_name")),
+        ("factual_address", t("factual_address")),
+        ("hobbies", t("hobbies")),
+        ("nationality", t("nationality")),
+        ("citizenship", t("citizenship")),
+        ("residence_permit", t("residence_permit")),
+        ("document_expiry", t("document_expiry")),
+        ("social_status", t("social_status")),
+        ("orphan_status", t("orphan_status")),
+        ("disability_status", t("disability_status")),
+        ("family_support", t("family_support")),
+        ("previous_residence", t("previous_residence")),
+        ("current_residence", t("current_residence")),
+        ("housing_type", t("housing_type")),
+        ("parents_education", t("parents_education")),
+        ("social_help", t("social_help")),
+        ("expelled_status", t("expelled_status")),
+        ("order_number", t("order_number")),
+        ("group", t("group")),
+        ("course", t("course")),
+    ]
+    
+    # Словарь для быстрого доступа к индексам столбцов по именам
+    field_indexes = {
+        "full_name": 1,
+        "birth_date": 2,
+        "school": 3,
+        "region": 4,
+        "district": 5,
+        "city": 6,
+        "address": 7,
+        "parents_name": 8,
+        "factual_address": 9,
+        "hobbies": 10,
+        "nationality": 11,
+        "citizenship": 12,
+        "residence_permit": 13,
+        "document_expiry": 14,
+        "social_status": 15,
+        "orphan_status": 16,
+        "disability_status": 17,
+        "family_support": 18,
+        "previous_residence": 19,
+        "current_residence": 20,
+        "housing_type": 21,
+        "parents_education": 22,
+        "social_help": 23,
+        "expelled_status": 24,
+        "order_number": 25,
+        "group": 27,
+        "course": 28,
+    }
+    
+    # Создаем чекбоксы для выбора полей
+    field_checkboxes = {}
+    checkbox_columns = []
+    column_controls = []
+    
+    # Создаем колонки с чекбоксами (3 колонки для равномерного распределения)
+    for i, (field_id, field_name) in enumerate(field_options):
+        checkbox = ft.Checkbox(label=field_name, value=True)
+        field_checkboxes[field_id] = checkbox
+        column_controls.append(checkbox)
+        
+        # Каждые N элементов создаем новую колонку
+        if (i + 1) % 9 == 0 or i == len(field_options) - 1:
+            checkbox_columns.append(ft.Column(controls=column_controls, spacing=5))
+            column_controls = []
+    
+    # Функция для выбора/снятия выбора со всех полей
+    def toggle_all(e):
+        new_value = not all(checkbox.value for checkbox in field_checkboxes.values())
+        for checkbox in field_checkboxes.values():
+            checkbox.value = new_value
+        page.update()
+    
+    # Функция для экспорта данных
+    def export_action(e):
+        # Проверяем, выбрано ли хотя бы одно поле
+        selected_fields = [field_id for field_id, checkbox in field_checkboxes.items() if checkbox.value]
+        
+        if not selected_fields:
+            show_snackbar(page, t("select_at_least_one_field"), is_error=True)
+            return
+        
+        # Закрываем диалог
+        dialog.close()
+        
+        # Показываем диалог загрузки
+        loading_dialog = create_loading_dialog(page, t("generating_excel"))
+        loading_dialog.open = True
+        page.update()
+        
+        try:
+            # Преобразуем данные для выбранных полей
+            export_data = []
+            for row in data:
+                export_row = {}
+                for field_id in selected_fields:
+                    # Получаем значение из строки БД по индексу поля
+                    field_index = field_indexes.get(field_id)
+                    if field_index is None:
+                        print(f"Warning: Field index not found for {field_id}")
+                        continue
+                    
+                    if field_index >= len(row):
+                        print(f"Warning: Index {field_index} out of range for row with length {len(row)}")
+                        value = ""
+                    else:
+                        value = row[field_index]
+                    
+                    # Форматируем определенные типы данных
+                    if field_id == "birth_date" or field_id == "document_expiry":
+                        value = str(value) if value else ""
+                    elif field_id == "orphan_status" or field_id == "disability_status" or field_id == "expelled_status":
+                        value = "✓" if value else "✗"
+                    else:
+                        value = str(value) if value is not None else ""
+                    
+                    # Добавляем в словарь с переведенным названием поля
+                    translated_field_name = next((name for fid, name in field_options if fid == field_id), field_id)
+                    export_row[translated_field_name] = value
+                
+                export_data.append(export_row)
+            
+            # Проверяем, есть ли данные для экспорта
+            if not export_data:
+                show_snackbar(page, f"{t('export_error')}: {t('no_data')}", is_error=True)
+                loading_dialog.open = False
+                page.update()
+                return
+            
+            # Создаем имя файла с текущей датой и временем
+            current_date = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"students_export_{current_date}.xlsx"
+            
+            # Создаем полный путь к файлу в папке Downloads
+            home_dir = os.path.expanduser("~")
+            downloads_dir = os.path.join(home_dir, "Downloads")
+            if not os.path.exists(downloads_dir):
+                os.makedirs(downloads_dir)
+            
+            file_path = os.path.join(downloads_dir, filename)
+            
+            # Создаем и сохраняем файл Excel
+            export_path = generate_excel_file(export_data, file_path)
+            
+            # Закрываем диалог загрузки
+            loading_dialog.open = False
+            page.update()
+            
+            # Проверяем, был ли успешно создан файл
+            if export_path is None:
+                show_snackbar(page, f"{t('export_error')}: {t('excel_module_error')}", is_error=True)
+                return
+            
+            # Показываем сообщение об успешном экспорте
+            show_snackbar(page, f"{t('excel_exported_successfully')}: {export_path}", is_error=False)
+            
+            # Открываем файл с помощью системного приложения по умолчанию
+            import subprocess
+            import platform
+            
+            try:
+                system = platform.system()
+                if system == 'Darwin':  # macOS
+                    subprocess.call(('open', export_path))
+                elif system == 'Windows':
+                    os.startfile(export_path)
+                else:  # Linux
+                    subprocess.call(('xdg-open', export_path))
+                    
+                print(f"Excel file opened: {export_path}")
+            except Exception as open_error:
+                print(f"Error opening Excel file: {open_error}")
+                # Если не удалось открыть файл, просто показываем путь к нему
+                show_snackbar(page, f"{t('excel_file_saved')}: {export_path}", is_error=False)
+            
+        except Exception as e:
+            print(f"Error exporting data: {e}")
+            traceback.print_exc()
+            
+            # Показываем сообщение об ошибке
+            show_snackbar(page, f"{t('export_error')}: {str(e)}", is_error=True)
+            
+        finally:
+            # Закрываем диалог загрузки если он ещё открыт
+            if hasattr(loading_dialog, 'open') and loading_dialog.open:
+                loading_dialog.open = False
+                page.update()
+    
+    # Создаем кнопки действий
+    select_all_btn = ft.TextButton(t("select_all_fields"), on_click=toggle_all)
+    cancel_btn = ft.TextButton(t("cancel"), on_click=lambda e: dialog.close())
+    export_btn = ft.ElevatedButton(
+        t("export_excel"),
+        on_click=export_action,
+        bgcolor=ft.colors.GREEN,
+        color=ft.colors.WHITE,
+    )
+    
+    # Создаем содержимое диалога
+    content = ft.Column(
+        [
+            ft.Text(t("select_fields_to_export"), weight=ft.FontWeight.BOLD, size=16),
+            ft.Divider(),
+            ft.Row(
+                checkbox_columns,
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=20,
+            ),
+            ft.Row(
+                [select_all_btn],
+                alignment=ft.MainAxisAlignment.CENTER,
+            ),
+        ],
+        scroll=ft.ScrollMode.AUTO,
+        height=400,
+    )
+    
+    # Создаем действия диалога
+    actions = [
+        cancel_btn,
+        export_btn,
+    ]
+    
+    # Создаем диалог с использованием CustomDialog
+    dialog = CustomDialog(
+        page=page,
+        title=t("export_to_excel"),
+        content=content,
+        actions=actions
+    )
+    
+    # Открываем диалог
+    dialog.open()
+
+# Добавим функцию для создания диалога загрузки
+def create_loading_dialog(page, message):
+    """Создает и возвращает диалог с индикатором загрузки."""
+    loading_dialog = ft.AlertDialog(
+        content=ft.Column([
+            ft.ProgressRing(width=40, height=40, stroke_width=4),
+            ft.Text(message, text_align=ft.TextAlign.CENTER),
+        ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
+        modal=True
+    )
+    page.dialog = loading_dialog
+    return loading_dialog
+
+# Создаем функцию для обработки изменения даты
+def handle_date_change(date):
+    if date:
+        # Устанавливаем значение для скрытого поля с датой (для сохранения в БД)
+        hidden_date_field.value = date.strftime("%Y-%m-%d")
+    else:
+        hidden_date_field.value = ""
+    page.update()
+
+# Создаем скрытое поле для хранения даты в формате для БД
+hidden_date_field = ft.TextField(
+    visible=False,
+    value=student_data[2].strftime("%Y-%m-%d") if student_data[2] else ""
+)
+
+# Начальная дата для селектора
+initial_date = student_data[2] if student_data[2] else None
+
+# Создаем селектор даты
+date_selector, get_date = create_date_selector(page, initial_date, handle_date_change)
+
+# В функции edit_student_dialog заменяем создание date_picker и date_field
+# ...
+
+# Заменяем старое поле даты на новое в basic_fields
+basic_fields = [
+    full_name_field,
+    ft.Column([
+        ft.Text(t("birth_date"), size=14, weight=ft.FontWeight.BOLD),
+        date_selector,
+        hidden_date_field,  # Скрытое поле для хранения даты
+    ], spacing=5),
+    school_field,
+    region_field,
+    district_field,
+    city_field,
+]
+
+# В функции save_changes изменяем проверку и получение даты
+def save_changes(e):
+    # Валидация
+    if not full_name_field.value or not full_name_field.value.strip():
+        show_snackbar(page, t("error_empty_name"), is_error=True)
+        return
+        
+    # Получаем дату из скрытого поля
+    if not hidden_date_field.value:
+        show_snackbar(page, t("error_empty_birth_date"), is_error=True)
+        return
+    
+    # Проверяем формат даты
+    try:
+        birth_date = datetime.datetime.strptime(hidden_date_field.value, "%Y-%m-%d").date()
+        today = datetime.date.today()
+        
+        # Дополнительная проверка, если пользователь редактировал поле напрямую
+        if birth_date > today:
+            show_snackbar(page, t("error_future_date"), is_error=True)
+            return
+            
+        age = (today - birth_date).days // 365
+        if age < 10:
+            show_snackbar(page, t("error_too_young"), is_error=True)
+            return
+    except ValueError:
+        show_snackbar(page, t("error_invalid_date_format"), is_error=True)
+        return
+
+# Заменяем date_picker на реализацию с выпадающими списками
+def create_date_selector(page, initial_date=None, on_change=None):
+    """Создает компонент для выбора даты с выпадающими списками."""
+    
+    # Подготавливаем дни, месяцы и годы
+    days = [str(i) for i in range(1, 32)]
+    months = [
+        "01 - Январь", "02 - Февраль", "03 - Март", "04 - Апрель",
+        "05 - Май", "06 - Июнь", "07 - Июль", "08 - Август",
+        "09 - Сентябрь", "10 - Октябрь", "11 - Ноябрь", "12 - Декабрь"
+    ]
+    current_year = datetime.datetime.now().year
+    years = [str(year) for year in range(current_year - 70, current_year + 1)]
+    
+    # Устанавливаем начальные значения
+    if initial_date and isinstance(initial_date, datetime.date):
+        initial_day = str(initial_date.day)
+        initial_month = months[initial_date.month - 1]
+        initial_year = str(initial_date.year)
+    else:
+        initial_day = None
+        initial_month = None
+        initial_year = None
+    
+    # Создаем выпадающие списки
+    day_dropdown = ft.Dropdown(
+        label=t("day"),
+        options=[ft.dropdown.Option(day) for day in days],
+        value=initial_day,
+        width=90,
+        hint_text="День",
+        autofocus=False,
+    )
+    
+    month_dropdown = ft.Dropdown(
+        label=t("month"),
+        options=[ft.dropdown.Option(month) for month in months],
+        value=initial_month,
+        width=200,
+        hint_text="Месяц",
+        autofocus=False,
+    )
+    
+    year_dropdown = ft.Dropdown(
+        label=t("year"),
+        options=[ft.dropdown.Option(year) for year in years],
+        value=initial_year,
+        width=120,
+        hint_text="Год",
+        autofocus=False,
+    )
+    
+    # Функция для получения выбранной даты
+    def get_selected_date():
+        if not day_dropdown.value or not month_dropdown.value or not year_dropdown.value:
+            return None
+        
+        try:
+            # Извлекаем месяц из строки "01 - Январь"
+            month_num = int(month_dropdown.value.split(' ')[0])
+            return datetime.date(
+                int(year_dropdown.value),
+                month_num,
+                int(day_dropdown.value)
+            )
+        except (ValueError, IndexError) as e:
+            print(f"Error parsing date: {e}")
+            return None
+    
+    # Функция для обновления полей при изменении
+    def update_date_fields(e):
+        try:
+            if day_dropdown.value and month_dropdown.value and year_dropdown.value:
+                # Валидация даты
+                try:
+                    # Извлекаем номер месяца из строки "01 - Январь"
+                    month_num = int(month_dropdown.value.split(' ')[0])
+                    selected_date = datetime.date(
+                        int(year_dropdown.value),
+                        month_num,
+                        int(day_dropdown.value)
+                    )
+                    
+                    # Проверка на валидность даты
+                    # например, 30 февраля должно выдать ошибку
+                    # По умолчанию datetime.date сгенерирует ошибку, но мы ее обрабатываем
+                    
+                    # Дополнительно проверяем что дата не в будущем
+                    today = datetime.date.today()
+                    if selected_date > today:
+                        show_snackbar(page, t("error_future_date"), is_error=True)
+                        day_dropdown.border_color = ft.colors.RED
+                        month_dropdown.border_color = ft.colors.RED
+                        year_dropdown.border_color = ft.colors.RED
+                        return None
+                    
+                    # Проверяем возраст - не менее 10 лет
+                    age = (today - selected_date).days // 365
+                    if age < 10:
+                        show_snackbar(page, t("error_too_young"), is_error=True)
+                        day_dropdown.border_color = ft.colors.RED
+                        month_dropdown.border_color = ft.colors.RED
+                        year_dropdown.border_color = ft.colors.RED
+                        return None
+                    
+                    # Если все проверки пройдены, возвращаем дату
+                    day_dropdown.border_color = ft.colors.GREEN
+                    month_dropdown.border_color = ft.colors.GREEN
+                    year_dropdown.border_color = ft.colors.GREEN
+                    
+                    if on_change:
+                        on_change(selected_date)
+                    
+                    return selected_date
+                    
+                except ValueError as e:
+                    show_snackbar(page, t("error_invalid_date_format"), is_error=True)
+                    day_dropdown.border_color = ft.colors.RED
+                    month_dropdown.border_color = ft.colors.RED
+                    year_dropdown.border_color = ft.colors.RED
+                    print(f"Error validating date: {e}")
+                    return None
+            
+            # Если не все поля заполнены, сбрасываем цвета
+            day_dropdown.border_color = ft.colors.BLUE
+            month_dropdown.border_color = ft.colors.BLUE
+            year_dropdown.border_color = ft.colors.BLUE
+            return None
+            
+        except Exception as e:
+            print(f"Error in update_date_fields: {e}")
+            traceback.print_exc()
+            return None
+    
+    # Привязываем обработчики событий
+    day_dropdown.on_change = update_date_fields
+    month_dropdown.on_change = update_date_fields
+    year_dropdown.on_change = update_date_fields
+    
+    # Создаем компонент
+    date_selector = ft.Row([
+        day_dropdown,
+        month_dropdown,
+        year_dropdown,
+    ], spacing=10)
+    
+    # Возвращаем компонент и функцию получения даты
+    return date_selector, get_selected_date
+
+# Экспортируем функцию students_screen для использования в других модулях

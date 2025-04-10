@@ -240,7 +240,6 @@ def register_screen(page: ft.Page):
                             bgcolor=ft.Colors.WHITE,
                             border_radius=10,
                             width=550,
-                            height=650,
                             padding=ft.padding.all(10),
                             content=ft.Column(
                                 controls=[
@@ -261,7 +260,7 @@ def register_screen(page: ft.Page):
                                         thickness=1
                                     ),
                                     ft.Container(
-                                        content=ft.ListView(
+                                        content=ft.Column(
                                             controls=[
                                                 email_field,
                                                 password_field,
@@ -292,13 +291,11 @@ def register_screen(page: ft.Page):
                                                         ),
                                                     ),
                                                     alignment=ft.alignment.center,
-                                                    padding=ft.padding.only(top=10, bottom=10),
+                                                    padding=ft.padding.only(top=5, bottom=5),
                                                 ),
                                             ],
-                                            spacing=15,
-                                            height=420, # Increase height to ensure all content is visible
+                                            spacing=10,
                                             width=550,
-                                            auto_scroll=True,
                                         ),
                                         alignment=ft.alignment.center,
                                     ),

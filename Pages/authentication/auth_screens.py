@@ -6,12 +6,10 @@ from psycopg2 import connect
 import sys
 import traceback
 
-# Add parent directory to path to allow imports
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 from Pages.translations import translations
 from Pages.utils import t, change_language, language_selector
 
-# Database configuration
 DB_CONFIG = {
     "dbname": "railway",
     "user": "postgres",
@@ -20,7 +18,6 @@ DB_CONFIG = {
     "port": "33741"
 }
 
-# Session file path 
 SESSION_FILE = "session.json"
 
 def connect_to_db():
@@ -136,7 +133,6 @@ def auth_screen(page: ft.Page):
                 save_session(True, email, role)
                 
                 try:
-                    # Clear views and navigate to dashboard
                     page.views.clear()
                     
                     from Pages.dashboard.dashboard import dashboard_screen
@@ -154,7 +150,6 @@ def auth_screen(page: ft.Page):
                         ft.Text(f"Navigation error: {str(nav_error)}", color="red"), open=True
                     )
             else:
-                # Check if user exists
                 cur.execute("SELECT 1 FROM users WHERE LOWER(email) = LOWER(%s)", (login_email_field.value,))
                 if cur.fetchone():
                     print(f"DEBUG - Invalid password for user: {login_email_field.value}")
@@ -205,7 +200,6 @@ def auth_screen(page: ft.Page):
     )
     page.update()
 
-    # Get the absolute path to the assets directory
     assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../assets"))
     logo_path = os.path.join(assets_dir, "logo.png")
 
@@ -219,7 +213,6 @@ def auth_screen(page: ft.Page):
                 padding=ft.padding.all(0),
                 content=ft.Column(
                     controls=[
-                        # Add language selector
                         ft.Row(
                             controls=[
                                 language_selector(page),
@@ -265,7 +258,6 @@ def auth_screen(page: ft.Page):
                                                 ),
                                                 alignment=ft.alignment.center,
                                             ),
-                                            # Update register button
                                             ft.Container(
                                                 content=ft.TextButton(
                                                     text=t("no_account"),
@@ -305,14 +297,14 @@ def main(page: ft.Page):
 
     if is_user_logged_in():
         from Pages.dashboard.dashboard import dashboard_screen
-        page.views.clear()  # Очищаем все представления
+        page.views.clear()  
         dash_view = ft.View(route="/dashboard", controls=[])
         page.views.append(dash_view)
         dashboard_screen(page)
         page.go("/dashboard")
     else:
         from Pages.authentication.register_screen import register_screen
-        page.views.clear()  # Очищаем все представления
+        page.views.clear()  
         auth_view = auth_screen(page)
         register_view = register_screen(page)
         page.views.extend([auth_view, register_view])
